@@ -1,0 +1,20 @@
+<sp-sidenav>
+    <sp-sidenav-item value="movies" [attr.selected]="(route$ | async) === '/movies' ? '' : null" [routerLink]="'/movies'">
+        <svg-icon [name]="'movie'" [size]="'2.3em'" slot="icon"></svg-icon>
+    </sp-sidenav-item>
+    <sp-sidenav-item value="actors" [attr.selected]="(route$ | async) === '/actors' ? '' : null" [routerLink]="'/actors'">
+        <svg-icon [name]="'bowTie'" [size]="'2.3em'" slot="icon"></svg-icon>
+    </sp-sidenav-item>
+    <sp-sidenav-item value="directing" [attr.selected]="(route$ | async) === '/directing' ? '' : null" [routerLink]="'/directing'">
+        <svg-icon [name]="'directing'" [size]="'2.3em'" slot="icon"></svg-icon>
+    </sp-sidenav-item>
+    <sp-sidenav-item value="benchmark" [attr.selected]="(route$ | async) === '/benchmark' ? '' : null" [routerLink]="'/benchmark'">
+        <svg-icon [name]="'benchmark'" [size]="'2.3em'" slot="icon"></svg-icon>
+    </sp-sidenav-item>
+    <sp-sidenav-item value="settings" [attr.selected]="(route$ | async) === '/translate-demo' ? '' : null" [routerLink]="'/translate-demo'">
+        <svg-icon [name]="'translate'" [size]="'2.3em'" slot="icon"></svg-icon>
+    </sp-sidenav-item>
+    <sp-sidenav-item value="settings" [attr.selected]="(route$ | async) === '/settings' ? '' : null" [routerLink]="'/settings'">
+        <svg-icon [name]="'gear'" [size]="'2.3em'" slot="icon"></svg-icon>
+    </sp-sidenav-item>
+</sp-sidenav>

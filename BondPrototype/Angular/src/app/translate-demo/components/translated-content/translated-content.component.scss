@@ -1,0 +1,17 @@
+
+:host {
+    display: block;
+    white-space: pre-wrap;
+    border: 1px solid;
+    border-color: var(--spectrum-alias-border-color);
+    border-radius: var(--spectrum-alias-border-radius-regular);
+    margin-top: 0;
+    padding: 6px 12px 11px 9px;
+    
+    &.main {
+        margin: 40px 15px;
+        min-height: 100px;
+        font-size: 18px;
+    }
+    
+}

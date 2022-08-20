@@ -1,0 +1,26 @@
+<div class="poster-column">
+    <img [src]="picture | safeUrl" alt="Picture for {{name}}"/>
+</div>
+
+<div class="text-column">
+    <div style="position: relative; width: fit-content">
+        <h2 class="spectrum-Heading spectrum-Heading--sizeL">{{name}} ({{year}})</h2>
+        <span class="rating">
+            <sp-icon-star></sp-icon-star>
+            {{rating}}/10
+        </span>
+    </div>
+    <p>{{description}}</p>
+    <div>
+        <div>
+            <span>Director:</span>
+            <span>{{director}}</span>
+        </div>
+        <div>
+            <span>Actors:</span>
+            <span>{{actors.join(', ')}}</span>
+        </div>
+    </div>
+
+    <div class="awards">No awards</div>
+</div>

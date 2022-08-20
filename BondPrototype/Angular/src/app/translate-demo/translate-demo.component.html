@@ -1,0 +1,101 @@
+﻿<div class="spectrum-grid" style="margin-top: 1em" [ngClass]="{'single-column': isPoppedOut}">
+    <div class="column">
+        <div>
+            <sp-field-label for="csharp" size="m">C#</sp-field-label>
+            <sp-action-group compact>
+                <sp-action-button [attr.disabled]="nameOfUserCodeSheet ? null : ''" size="s" (click)="deleteActiveSheet()">
+                    <sp-icon-delete slot="icon"></sp-icon-delete>
+                    Delete
+                </sp-action-button>
+                <sp-action-button size="s" (click)="saveAs()">
+                    <sp-icon-save-as-floppy slot="icon"></sp-icon-save-as-floppy>
+                    Save as
+                </sp-action-button>
+                <sp-action-button size="s" (click)="save()">
+                    <sp-icon-save-floppy slot="icon"></sp-icon-save-floppy>
+                    Save
+                </sp-action-button>
+            </sp-action-group>
+        </div>
+        <sp-textfield id="csharp" #csharp multiline grows="true" spellcheck="false" placeholder="Enter your C# source"></sp-textfield>
+    </div>
+
+    <div class="column" *ngIf="!isPoppedOut">
+        <div>
+            <sp-field-label for="ts" size="m">TypeScript</sp-field-label>
+            <sp-action-group compact>
+                <sp-action-button size="s" [attr.disabled]="(translation$ | async) ? null : ''" (click)="copyToClipboard()">
+                    <sp-icon-copy slot="icon"></sp-icon-copy>
+                    Copy
+                </sp-action-button>
+                <sp-action-button size="s" [attr.disabled]="(translation$ | async) ? null : ''" (click)="popOut()">
+                    <sp-icon-link-out slot="icon"></sp-icon-link-out>
+                    Pop-out
+                </sp-action-button>
+                <sp-action-button size="s" [attr.disabled]="(translation$ | async) ? null : ''" (click)="executeTs()">
+                    <sp-icon-play slot="icon"></sp-icon-play>
+                    Run
+                </sp-action-button>
+            </sp-action-group>
+        </div>
+
+        <translated-content [translation]="translation$ | async"></translated-content>
+
+    </div>
+
+</div>
+
+<!-- examples -->
+<div id="toolbar">
+    <sp-picker id="picker-m" size="m" label="Query name" #picker (change)="loadExampleOnPick(picker.value); !userCodeSheets.includes(picker.value) ? (picker.value = null) : null;">
+        <sp-menu-item *ngFor="let example of builtInExamples" value="{{example}}">{{example}}</sp-menu-item>
+        <sp-menu-divider *ngIf="userCodeSheets.length"></sp-menu-divider>
+        <sp-menu-item *ngFor="let example of userCodeSheets" value="{{example}}">{{example}}</sp-menu-item>
+    </sp-picker>
+    <sp-button dir="rtl" [attr.disabled]="isLoadingTranslation ? '' : null" (click)="translateClick.next()">
+        <sp-progress-circle *ngIf="isLoadingTranslation" size="s" indeterminate slot="icon"></sp-progress-circle>
+        Translate
+    </sp-button>
+</div>
+
+<!-- console-tray -->
+<overlay-trigger type="modal" placement="none">
+    <sp-tray slot="click-content">
+        <sp-dialog size="m" dismissable><h6 slot="heading">Console</h6>
+            <ul>
+                <li *ngFor="let result of executionResults"><code class="spectrum-Code spectrum-Code--sizeM">{{result}}</code></li>
+                <li *ngIf="executionException"><code style="color: var(--spectrum-semantic-negative-text-color-small)" class="spectrum-Code spectrum-Code--sizeM">{{executionException}}</code></li>
+                <li *ngIf="!executionException && (!executionResults || !executionResults.length)"><code class="spectrum-Code spectrum-Code--sizeM"><em>Empty log</em></code></li>
+            </ul>
+        </sp-dialog>
+    </sp-tray>
+    <div slot="trigger" #consoleTrayTrigger></div>
+</overlay-trigger>
+
+
+<!-- save-modal -->
+<overlay-trigger type="modal" placement="none">
+    <sp-dialog-wrapper
+        #wrapper
+        slot="click-content"
+        headline="Save as"
+        dismissable
+        underlay
+        size="m"
+    >
+        <form class="spectrum-Form">
+            <div class="spectrum-Form-item">
+                <sp-field-label for="sheet-name">Code sheet's name</sp-field-label>
+                <sp-textfield id="sheet-name" ngDefaultControl [(ngModel)]="nameOfUserCodeSheet" [ngModelOptions]="{standalone: true}" autofocus="true" #sheetName
+                              (keyup)="$event.key === 'Enter' && saveBtn.click()"></sp-textfield>
+            </div>
+
+            <sp-button-group class="spectrum-Dialog-buttonGroup spectrum-Dialog-buttonGroup--noFooter">
+                <sp-button variant="secondary" treatment="outline" (click)="wrapper.dispatchEvent(createEvent('close')); wrapper.close();">Cancel</sp-button>
+                <sp-button (click)="wrapper.dispatchEvent(createEvent('confirm')); wrapper.close(); picker.value = sheetName.value" #saveBtn>Save</sp-button>
+            </sp-button-group>
+
+        </form>
+    </sp-dialog-wrapper>
+    <div slot="trigger" #saveAsModalTrigger></div>
+</overlay-trigger>

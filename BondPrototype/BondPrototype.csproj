@@ -1,0 +1,85 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.4" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.5" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.5">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="6.0.5" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.5" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Tools.DotNet" Version="2.0.3" />
+	  <PackageReference Include="MySqlConnector" Version="2.1.8" />
+	  <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.1" />
+	  <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.Json.Microsoft" Version="6.0.1" />
+	  <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.3.0" />
+	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.3.0" />
+	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.3.0" />
+	</ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Angular\dist" />
+      <None Remove="Migrations\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Angular\src\app\actors\components" />
+      <Folder Include="Angular\src\app\actors\directives" />
+      <Folder Include="Angular\src\app\actors\services" />
+      <Folder Include="Angular\src\app\api" />
+      <Folder Include="Angular\src\app\common\services" />
+      <Folder Include="Angular\src\app\movies\services" />
+      <Folder Include="Angular\src\app\translate-demo\components" />
+      <Folder Include="Common\Utilities" />
+      <Folder Include="wwwroot" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Migrations\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Migrations\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Remove="Migrations\**" />
+      <Content Update="bond.schema.json">
+        <DependentUpon>bond.json</DependentUpon>
+      </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="wwwroot\js\site.js" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Translator\Translator.csproj" />
+    </ItemGroup>
+
+     <ItemGroup>
+	  <None Update="Controllers\QueryImplementations.cs.locked">
+        <DependentUpon>QueryImplementations.cs</DependentUpon>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+	  <Compile Update="Controllers\QueryImplementations.cs">
+        <DependentUpon>QueryController.cs</DependentUpon>
+      </Compile>
+    </ItemGroup>
+
+     <ItemGroup>
+	  <None Update="Controllers\QueryImplementations.cs.locked">
+        <DependentUpon>QueryImplementations.cs</DependentUpon>
+      </None>
+    </ItemGroup>
+
+</Project>

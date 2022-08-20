@@ -1,0 +1,42 @@
+.toast-container {
+    position: fixed;
+    top: 4em;
+    z-index: 9999;
+
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--spectrum-global-font-family-base);
+
+    display: flex;
+    flex-direction: column;
+
+    sp-toast {
+        position: relative;
+        margin-top: 5px;
+        animation: toastDown .4s cubic-bezier(0.3, 0.82, 0.17, 0.86) forwards;
+        bottom: 150px;
+
+        &:first-child {
+            bottom: 30px;
+
+            + sp-toast {
+                bottom: 70px;
+
+                + sp-toast {
+                    bottom: 110px;
+                }
+
+                + sp-toast {
+                    bottom: 110px;
+                }
+            }
+        }
+
+    }
+}
+
+@keyframes toastDown {
+    to {
+        bottom: 0;
+    }
+}

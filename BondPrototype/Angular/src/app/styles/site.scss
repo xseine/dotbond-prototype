@@ -1,0 +1,87 @@
+@import "_variables";
+@import "_fonts";
+@import "_spectrum-imports";
+@import "_sp-toast.scss";
+
+/*========================== Spectrum config ==========================*/
+
+sp-theme, sp-popover, sp-dialog, sp-dialog-wrapper, active-overlay {
+    --spectrum-global-color-static-blue-200: #{lighten($blue-primary, 20%)};
+    --spectrum-global-color-static-blue-300: #{lighten($blue-primary, 15%)};
+    --spectrum-global-color-static-blue-400: #{lighten($blue-primary, 10%)};
+    --spectrum-global-color-static-blue-500: #{lighten($blue-primary, 5%)};
+    --spectrum-global-color-static-blue-600: #{$blue-primary};
+    --spectrum-global-color-static-blue-700: #{darken($blue-primary, 5%)};
+    --spectrum-global-color-static-blue-800: #{darken($blue-primary, 10%)};
+
+    --spectrum-semantic-cta-background-color-default: var(--spectrum-global-color-static-blue-600);
+
+    --spectrum-global-font-family-base: "Source Sans Pro";
+    --spectrum-global-dimension-font-size-100: 14.75px;
+    --spectrum-global-dimension-font-size-75: 12.75px;
+    font-family: "Source Sans Pro";
+    --spectrum-dialog-confirm-padding: 40px;
+    --spectrum-dialog-confirm-entry-animation-distance: 20px;
+}
+
+sp-sidenav {
+    --spectrum-web-component-sidenav-font-weight: 400px !important;
+}
+
+
+/*========================== Body config ==========================*/
+
+html {
+    font-family: "Source Sans Pro";
+    font-size: 14px;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: $light-grey;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+@supports (overflow: overlay) {
+    html {
+        overflow: hidden;
+
+        &:hover {
+            overflow-y: overlay;
+        }
+    }
+
+    title-bar {
+        padding-right: 1em;
+    }
+}
+
+//sp-progress-circle {
+//    --spectrum-progresscircle-m-over-background-track-fill-color: rgba(255, 255, 255, 0.2);
+//}
+
+//*::-webkit-scrollbar {
+//    width: 1em;
+//    margin-right: 15px;
+//    height: 1em;
+//}
+//
+//*::-webkit-scrollbar-track {
+//    -webkit-box-shadow: inset 0 20px 40px rgba(255, 255, 255, 1);
+//}
+//
+//*::-webkit-scrollbar-thumb {
+//    background-color: #d1d1d1;
+//
+//    &:hover, &:active {
+//        background-color: $input-color;
+//    }
+//}
+
+::ng-deep .modal {
+    background: black;
+}

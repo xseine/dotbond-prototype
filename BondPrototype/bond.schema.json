@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/bond.schema.json",
+  "title": "BondRuntime",
+  "description": "Configuration for .Bond",
+  "type": "object",
+  "properties": {
+    "version": {
+      "description": "File format version",
+      "type": "integer"
+    },
+    "fileNameCase" : {
+      "description": "Case rules for generated files",
+      "type": "string",
+      "enum": [
+        "kebab-case"
+      ]
+    },
+    "folderNameCase": {
+      "description": "Case rules for generated folders",
+      "type": "string",
+      "enum": [
+        "kebab-case"
+      ]
+    },
+    "outputFolder": {
+      "description": "Relative path of output folder for generated files and folders (relative to .csproj)",
+      "type": "string"
+    }
+  },
+  "required": ["fileNameCase", "folderNameCase", "outputFolder"]
+}

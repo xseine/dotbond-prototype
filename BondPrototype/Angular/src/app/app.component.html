@@ -1,0 +1,30 @@
+<sp-theme scale="medium" color="light">
+
+    <ng-container *ngIf="isFullscreen; then fullscreen; else noFullscreen">
+    </ng-container>
+    
+    <ng-template #noFullscreen>
+
+        <main class="spectrum-grid">
+            <div class="white-offset"></div>
+
+            <div id="main-logo">
+                <img src="assets/images/bond-logo.png" alt="DotBond logo logo (letter B with an infinity symbol)"/>
+                <div class="spectrum-Body spectrum-Body--sizeS"><em>Prototype</em></div>
+            </div>
+
+            <h1 id="header-text" class="spectrum-Heading spectrum-Heading--sizeXXL spectrum-Heading--light">{{activatedComponentHeaderText}}</h1>
+
+            <sidebar></sidebar>
+
+            <div id="active-component">
+                <router-outlet (activate)="onRouteActivate($event)"></router-outlet>
+            </div>
+        </main>
+    </ng-template>
+
+    <ng-template #fullscreen>
+        <router-outlet></router-outlet>
+    </ng-template>
+
+</sp-theme>

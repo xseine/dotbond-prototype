@@ -1,0 +1,25 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio 2015/2017 cache/options directory
+.vs/
+
+# node_modules
+node_modules/
+*/node_modules/
+
+# Angular
+/BondPrototype/Angular/.angular/
+*/.angular
+/BondPrototype/Angular/dist
+
+/Translator/Test.cs
+
+Microsoft.NET.Sdk.Razor.SourceGenerators

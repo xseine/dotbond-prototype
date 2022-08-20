@@ -1,0 +1,26 @@
+﻿// Strings
+var myVar = "World";
+var helloMessage = $"Hello {myVar}";
+var lowerCase = helloMessage.ToLower();
+var joinMessage = string.Join(", ", helloMessage, lowerCase);
+
+// Slicing
+var sliceOne = string.Join("", joinMessage.Skip(2).Take(5));
+
+// Variable Designation
+var (slicedString, slicedList, (num1, num2)) = (sliceOne, new[] {1, 2}.ToList().Skip(1).Take(1), (2, 3));
+
+// Dates
+var currentDate = DateTime.Now;
+var futureDate = currentDate.AddYears(10); // Prototype was extended with add[Unit] methods
+var dateOne = new DateTime(2022, 11, 12);
+var yearOne = dateOne.Year;
+var patternFormat = DateTime.Now.ToString("hh:mm:ss t z");
+
+
+Console.WriteLine(joinMessage);
+Console.WriteLine(sliceOne);
+Console.WriteLine(slicedList);
+Console.WriteLine(num1);
+Console.WriteLine(futureDate);
+Console.WriteLine(patternFormat);

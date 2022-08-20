@@ -1,0 +1,5 @@
+<div *ngFor="let actorRating of actorsAverageRating">
+    <span>{{actorRating.actor.name}}</span>
+    <span>{{actorRating.average}}</span>
+    <span>{{actorRating.colleagues.join(', ')}}</span>
+</div>

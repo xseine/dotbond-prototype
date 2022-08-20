@@ -1,0 +1,78 @@
+@import "variables";
+
+.movie-list {
+    grid-column: 1/8;
+}
+
+#movie-filter-options {
+    grid-column: 9/13;
+}
+
+
+.movie-list {
+    list-style: none;
+    padding-left: 0;
+
+    li:not(:last-child) {
+        padding-bottom: 25px;
+        border-bottom: 1px solid $medium-grey;
+        margin-bottom: 25px;
+    }
+}
+
+
+#movie-filter-options {
+    sp-search {
+        margin: 25px 0 5px;
+        width: 300px;
+        --spectrum-textfield-texticon-text-size: 1.2em;
+        --spectrum-textfield-texticon-height: 40px;
+        //--spectrum-textfield-m-texticon-background-color: #FAFAFA;
+        --spectrum-alias-search-padding-left-m: 30px;
+
+        sp-clear-button {
+            --spectrum-clearbutton-padding: 9px;    
+        }
+
+        //--spectrum-textfield-texticon-padding-top: 20px;
+    }
+
+    .spectrum-Heading {
+        margin-top: 20px;
+        text-transform: uppercase;
+    }
+    
+    .release-years {
+        list-style: none;
+        font-size: 1.3em;
+        padding-left: 0;
+        width: fit-content;
+        margin-top: 5px;
+        
+        $transition-duration: .1s;
+        
+        li {
+            padding: 10px 15px 10px 0;
+            transition: padding-left #{$transition-duration} ease-in, background-color 0.1s #{$transition-duration}, color 0.1s #{$transition-duration};
+            width: fit-content;
+            margin-bottom: 5px;
+
+            border-radius: var(--spectrum-alias-border-radius-regular);
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            
+            cursor: pointer;
+            &:hover {
+                background: $blue-primary;
+                color: white;
+                padding-left: 15px;
+                border-top-left-radius: var(--spectrum-alias-border-radius-regular);
+                border-bottom-left-radius: var(--spectrum-alias-border-radius-regular);
+
+
+                transition: padding-left #{$transition-duration} ease-in, border-radius 0s #{$transition-duration};
+            }
+        }
+    }
+}
+

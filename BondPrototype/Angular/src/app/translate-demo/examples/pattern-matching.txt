@@ -1,0 +1,29 @@
+﻿object? maybe = new Person();
+
+if (maybe is int)
+    Console.WriteLine($"The nullable int 'maybe' has the value {maybe}");
+else if (maybe is Person { Name: "Jack", SomeObject: Person { Name: "" } nestedPerson })
+    Console.WriteLine($"The Person in Person 'maybe' has the name: {nestedPerson.Name}");
+else if (maybe is Person { Name: string personName })
+    Console.WriteLine($"The Person 'maybe' has the name: {personName}");
+else if (maybe is Person person)
+    Console.WriteLine($"The Person 'maybe' has no name.");
+else if (maybe is {})
+{
+    Console.WriteLine($"The Person 'maybe' holds value.");
+}
+else
+{
+    Console.WriteLine("The variable 'maybe' doesn't hold a value");
+}
+
+class Person
+{
+    public string Name { get; set; }
+    public object SomeObject { get; set; }
+}
+
+class Employee : Person
+{
+    public string Salary { get; set; }
+}

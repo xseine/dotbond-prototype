@@ -1,0 +1,41 @@
+@import "variables";
+
+span + span {
+    margin-left: 10px;
+}
+
+.actors, empty-illustration {
+    grid-column: 1/10;
+
+    @include media("<=wide") {
+        grid-column: 1/13;
+    }
+}
+
+.actors {
+    margin-top: 50px;
+
+    img {
+        height: 100px;
+        width: 100px;
+        border-radius: 50%;
+    }
+
+    td {
+        vertical-align: middle;
+        white-space: pre;
+    }
+
+    .remove {
+        font-size: 1.5em;
+        padding: 0 50px;
+
+        &:hover sp-icon-close {
+            color: indianred;
+        }
+    }
+
+    tr.hover {
+        background-color: var(--spectrum-table-m-regular-quiet-row-background-color-hover, var(--spectrum-alias-highlight-hover));
+    }
+}

@@ -1,0 +1,93 @@
+<div class="spectrum-Form-item" style="margin-top: 1em">
+    <sp-field-label for="picker-m" size="m">Add query to analyze:</sp-field-label>
+    <sp-picker id="picker-m" size="m" label="Query name" #picker (change)="queryPick.next(picker.value); picker.value=''">
+        <sp-menu-item *ngFor="let query of bondQueries" value="{{query}}">{{query}}</sp-menu-item>
+    </sp-picker>
+</div>
+
+<div class="spectrum-grid">
+    <p class="spectrum-Body spectrum-Body--sizeM" id="results-info">Results are shown in milliseconds.<br/>Bigger dataset (i.e. more serialization) might give more concrete results.</p>
+    
+    <table class="spectrum-Table spectrum-Table--sizeM spectrum-Table--spacious spectrum-Table--quiet"
+           *ngIf="(querySelection$ | async)!.length !== 0">
+        <thead class="spectrum-Table-head">
+        <tr>
+            <th class="spectrum-Table-headCell"></th>
+            <th class="spectrum-Table-headCell">Name</th>
+            <th class="spectrum-Table-headCell">Params</th>
+            <th class="spectrum-Table-headCell">Number of iterations</th>
+            <th class="spectrum-Table-headCell">Client-side
+                <overlay-trigger placement="top">
+                    <sp-icon-info-outline slot="trigger" style="pointer-events: all"></sp-icon-info-outline>
+                    <sp-tooltip slot="hover-content" open placement="top">
+                        Forces the query to execute on client-side
+                    </sp-tooltip>
+                </overlay-trigger>
+            </th>
+            <th class="spectrum-Table-headCell">Mean</th>
+            <th class="spectrum-Table-headCell">Error</th>
+            <th class="spectrum-Table-headCell">StdDev</th>
+            <th class="spectrum-Table-headCell"></th>
+        </tr>
+        </thead>
+        <tbody class="spectrum-Table-body example-list" cdkDropList (cdkDropListDropped)="rowMove.next([$event.previousIndex, $event.currentIndex])">
+        <tr class="spectrum-Table-row example-box" *ngFor="let query of (querySelection$ | async)" cdkDrag cdkDragPreviewContainer="parent">
+            <td class="spectrum-Table-cell" (click)="!query.isRunning && queryBenchmarkRun.next(query)">
+                <sp-icon-play *ngIf="!query.isRunning"></sp-icon-play>
+                <sp-progress-circle *ngIf="query.isRunning" size="s" indeterminate></sp-progress-circle>
+            </td>
+            <td class="spectrum-Table-cell">{{query.name}}</td>
+            <td class="spectrum-Table-cell">{{query.params ? stringifyObject(query.params) : '-'}}</td>
+            <td class="spectrum-Table-cell" (mousedown)="$event.stopPropagation()">
+                <sp-number-field
+                    #numberField
+                    id="step-min"
+                    min="1"
+                    value="{{query.numberOfIterations}}"
+                    step-modifier="50"
+                    (change)="query.numberOfIterations = numberField.value"
+                ></sp-number-field>
+            </td>
+            <td class="spectrum-Table-cell">
+                <sp-checkbox style="left: 1.75em" #checkbox [attr.checked]="query.isClientSide ? '' : null" (change)="query.isClientSide = checkbox.checked"></sp-checkbox>
+            </td>
+            <td class="spectrum-Table-cell">{{query.mean | number: '0.2-2' ?? '-'}}</td>
+            <td class="spectrum-Table-cell">{{query.error | number: '0.2-2' ?? '-'}}</td>
+            <td class="spectrum-Table-cell">{{query.stdDev | number: '0.2-2' ?? '-'}}</td>
+            <td class="remove spectrum-Table-cell" (click)="queryRemoval.next(query.id)">
+                <sp-icon-close></sp-icon-close>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <empty-illustration heading="Table is empty" description="Select queries to configure the benchmark"
+                        *ngIf="(querySelection$ | async)!.length === 0"></empty-illustration>
+
+
+</div>
+
+<overlay-trigger type="modal" placement="none">
+    <sp-dialog-wrapper
+        #wrapper
+        slot="click-content"
+        headline="Query params"
+        dismissable
+        underlay
+        size="m"
+    >
+        <form class="spectrum-Form" [formGroup]="paramsForm">
+            <div class="spectrum-Form-item" *ngFor="let param of getParamNames; let paramIdx = index">
+                <sp-field-label for="{{param}}">{{param}}</sp-field-label>
+                <sp-textfield id="param{{param}}" ngDefaultControl [formControlName]="param" autofocus="{{paramIdx == 0}}"></sp-textfield>
+            </div>
+
+            <sp-button-group class="spectrum-Dialog-buttonGroup spectrum-Dialog-buttonGroup--noFooter">
+                <sp-button variant="secondary" treatment="outline" (click)="wrapper.dispatchEvent(createEvent('close')); wrapper.close();">Cancel</sp-button>
+                <sp-button (click)="wrapper.dispatchEvent(createEvent('confirm')); wrapper.close();">Apply</sp-button>
+            </sp-button-group>
+
+        </form>
+    </sp-dialog-wrapper>
+    <div slot="trigger" #trigger></div>
+</overlay-trigger>

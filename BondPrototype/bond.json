@@ -1,0 +1,7 @@
+{
+  "$schema": "./bond.schema.json",
+  "version:": 1,
+  "fileNameCase": "kebab-case",
+  "folderNameCase": "kebab-case",
+  "outputFolder": "Angular/src/app/api"
+}

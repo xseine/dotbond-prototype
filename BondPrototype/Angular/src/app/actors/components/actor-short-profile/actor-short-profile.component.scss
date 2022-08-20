@@ -1,0 +1,14 @@
+@import "variables";
+
+:host {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+img {
+    width: 150px;
+    height: 150px;
+    //background: $dark-grey;
+    border-radius: 50%;
+}

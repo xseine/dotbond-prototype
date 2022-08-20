@@ -1,0 +1,82 @@
+@import "variables";
+
+.spectrum-grid {
+
+    table, empty-illustration {
+        grid-column: 1/10;
+
+        @include media("<=wide") {
+            grid-column: 1/13;
+        }
+    }
+    
+    table {
+        margin-top: 50px;
+
+        td {
+            vertical-align: middle;
+            
+            &:first-child {
+                font-size: 1.5em;
+                width: 1.5em;
+                padding: 0 50px;
+                
+                &:hover {
+                    color: $blue-primary;
+                }
+            }
+
+            sp-number-field {
+                --spectrum-stepper-width: 120px !important;
+            }
+        }
+
+        .remove {
+            font-size: 1.5em;
+            padding: 0 50px;
+
+            &:hover sp-icon-close {
+                color: indianred;
+            }
+        }
+
+        sp-icon-info-outline {
+            height: calc(var(--spectrum-table-spacious-header-text-line-height) * var(--spectrum-table-spacious-header-text-size));
+            position: relative;
+            top: 3px;
+        }
+    }
+}
+
+#results-info {
+    grid-column: 7/10;
+    margin-top: 30px;
+    
+    @include media("<=wide") {
+        grid-column: 7/13;
+    }
+}
+
+.cdk-drag-preview {
+    box-sizing: border-box;
+    border-radius: 4px;
+    box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2),
+    0 8px 10px 1px rgba(0, 0, 0, 0.14),
+    0 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+.cdk-drag-placeholder {
+    opacity: 0;
+}
+
+.cdk-drag-animating {
+    transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.example-box:last-child {
+    border: none;
+}
+
+.example-list.cdk-drop-list-dragging .example-box:not(.cdk-drag-placeholder) {
+    transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}

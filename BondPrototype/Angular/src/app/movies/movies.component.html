@@ -1,0 +1,20 @@
+
+<div class="spectrum-grid">
+    <ul class="movie-list">
+        <li *ngFor="let movie of movies$ | async">
+            <movie-list-item [data]="movie"></movie-list-item>
+        </li>
+    </ul>
+    
+    <div id="movie-filter-options">
+        <sp-search></sp-search>
+
+        <h2 class="spectrum-Heading spectrum-Heading--sizeXS spectrum-Heading--light">Release year</h2>
+        <ul class="release-years">
+            <li>2021</li>
+            <li>2015</li>
+            <li>2007</li>
+        </ul>
+    </div>
+    
+</div>

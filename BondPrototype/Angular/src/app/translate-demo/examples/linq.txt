@@ -1,0 +1,27 @@
+var persons = new List<Person>();
+
+var map = persons.Select(e => new { e.Name, e.Age });
+var filter = persons.Where(e => e.Age < 20);
+var sort = persons.OrderBy(e => e.Age);
+var takeAndSkip = persons.Take(1).Skip(1).Take(1).Skip(1).Skip(1).Skip(1);
+
+var peopleFromTheSameStreet = persons
+    .GroupBy(person => person.HomeAddress.StreetName, person => new { person.Name, person.Age });
+var flatGroup = peopleFromTheSameStreet.SelectMany(persons => persons);
+
+
+/*========================== Type declarations ==========================*/
+
+class Person
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public int Age { get; set; }
+    public Address HomeAddress { get; set; }
+}
+
+class Address
+{
+    public string StreetName { get; set; }
+    public string StreetNo { get; set; }
+}
