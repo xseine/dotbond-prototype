@@ -4,6 +4,7 @@
         <TargetFramework>net6.0</TargetFramework>
         <Nullable>disable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
 	<ItemGroup>
@@ -53,6 +54,58 @@
       <Content Remove="Migrations\**" />
       <Content Update="bond.schema.json">
         <DependentUpon>bond.json</DependentUpon>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\Biographies\benicio-bio.txt" />
+      <Content Include="Models\DataSeeding\Actors\Biographies\benicio-bio.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\Biographies\javier-bio.txt" />
+      <Content Include="Models\DataSeeding\Actors\Biographies\javier-bio.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\Biographies\josh-bio.txt" />
+      <Content Include="Models\DataSeeding\Actors\Biographies\josh-bio.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\Biographies\timothee-bio.txt" />
+      <Content Include="Models\DataSeeding\Actors\Biographies\timothee-bio.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\Biographies\woody-bio.txt" />
+      <Content Include="Models\DataSeeding\Actors\Biographies\woody-bio.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\benicio.txt" />
+      <Content Include="Models\DataSeeding\Actors\benicio.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\javier.txt" />
+      <Content Include="Models\DataSeeding\Actors\javier.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\josh.txt" />
+      <Content Include="Models\DataSeeding\Actors\josh.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\timothee.txt" />
+      <Content Include="Models\DataSeeding\Actors\timothee.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\Actors\woody.txt" />
+      <Content Include="Models\DataSeeding\Actors\woody.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\dune.txt" />
+      <Content Include="Models\DataSeeding\dune.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\no-country.txt" />
+      <Content Include="Models\DataSeeding\no-country.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Models\DataSeeding\sicario.txt" />
+      <Content Include="Models\DataSeeding\sicario.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>
 

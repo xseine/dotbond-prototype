@@ -15,5 +15,22 @@ It consists of these two fresh mediums:
 - **API IQ**: Integrated queries (IQ) is the API layer for executing client queries using existing endpoints in the API.
   Frontend queries are compiled into their LINQ counterparts, and are evaluated on the server
   or in the datastore (if return type is IQueryable).<br/>
-  Query implementation can be overriden with custom implementations, or they can be completely disabled using `[NonAction]` attribute.<br/>
-  All the new endpoints are enabled by default, but future work will be done to look for redundant queries, queries similar to disabled ones, etc.
+  Query implementation can be overriden with custom implementations, or they can be completely disabled using `[NonAction]` attribute.
+
+
+
+## Strategy and implementation
+
+This tool is inspired by fullstack development and it's main goal is to reduce friction between 
+frontend and backend team, but to avoid any mysterious allusions, here's what it does: it allows frontend to create queries that fit their needs without waiting for backend to do it,
+and backend to setup its API without too much ceremony, and change it as well.<br/>
+Intention of this tool isn't for backend to play catch-up with frontend to tweak query implementations
+or some arbitrary compiler configuration, 
+nor that frontend creates badly performing queries. The frontend will have information if a new query is similar to a disabled one,
+if a filter operation will be fast (has index configured in EF), if a join will be fast (is IQueryable used), etc. 
+On the other end, new endpoints will be compiled and recompiled to utilize "base" endpoints and overriden implementations
+as much as possible, derivatives of disabled endpoints will be auto-disabled, etc. Improving compiler performance will be the main problem,
+since it needs to reach a point where it feels like it does a good enough job and the layer does not need to be micro-managed.
+
+All of this leads to a much more relaxed strategy for building APIs, with minimal implementation overhead.
+Implementation also does not require building integration logic, so the agility and independence of different systems is kept.  
