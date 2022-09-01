@@ -13,8 +13,8 @@
 //------------------------------------------------------------------------------
 
 import {MovieResult} from '../models/api-models/movie-result';
-import {AwardResult} from '../models/api-models/award-result';
 import {PersonResult} from '../models/api-models/person-result';
+import {AwardResult} from '../models/api-models/award-result';
 import {Observable} from "rxjs";
 import {method, fromBody, fromUri} from "./library/miscellaneous";
 
@@ -22,38 +22,38 @@ import {method, fromBody, fromUri} from "./library/miscellaneous";
 export class MovieApiController {
 
     @method('GET')
-    FaultyQueryMagical(): Observable<any[]> {
-        return {} as any; // Ignored
-    }
-
-    @method('GET')
-    FaultyQuery(): Observable<any[]> {
-        return {} as any; // Ignored
-    }
-
-    @method('GET')
-    GetMoviesFromAYear(year: number, _: string): Observable<MovieResult[]> {
-        return {} as any; // Ignored
-    }
-
-    @method('GET')
-    GetAwards(): Observable<AwardResult[]> {
-        return {} as any; // Ignored
-    }
-
-    @method('GET')
-    GetDirectors(): Observable<PersonResult[]> {
-        return {} as any; // Ignored
+    GetMovies(): Observable<MovieResult[]> {
+        return [] as any;
     }
 
     @method('GET')
     GetActors(): Observable<PersonResult[]> {
-        return {} as any; // Ignored
+        return [] as any;
     }
 
     @method('GET')
-    GetMovies(): Observable<MovieResult[]> {
-        return {} as any; // Ignored
+    GetDirectors(): Observable<PersonResult[]> {
+        return [] as any;
+    }
+
+    @method('GET')
+    GetAwards(): Observable<AwardResult[]> {
+        return [] as any;
+    }
+
+    @method('GET')
+    GetMoviesFromAYear(year: number, _: string): Observable<MovieResult[]> {
+        return ['year', '_'] as any;
+    }
+
+    @method('GET')
+    FaultyQuery(): Observable<any[]> {
+        return [] as any;
+    }
+
+    @method('GET')
+    FaultyQueryMagical(): Observable<any[]> {
+        return [] as any;
     }
 
 }
@@ -62,12 +62,12 @@ export class TranslateDemoController {
 
     @method('GET', true)
     Get(source: string): Observable<any> {
-        return {} as any; // Ignored
+        return ['source'] as any;
     }
 
     @method('POST', true)
     Post(@fromBody source: string, _?: number): Observable<any> {
-        return {} as any; // Ignored
+        return ['source', '_'] as any;
     }
 
 }

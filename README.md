@@ -1,6 +1,6 @@
 ﻿
-**This is a demo project that consists of a Web API project, Angular project, and "Translator" console project.
-Run the first two to see what the demo is about, and then run Translator and start adding new Controllers and new queries!**
+**This is a demo of the tool that consists of a Web API project, Angular project, and "Translator" console project.
+Run the first two to see what the demo is about (or use Dockerfile), and then run Translator and start adding new Controllers and new queries!**
 
 # <img src="https://i.imgur.com/guC4xm6.png" width="150" /> API tool for dynamic development
 
@@ -22,15 +22,22 @@ It consists of these two fresh mediums:
 ## Strategy and implementation
 
 This tool is inspired by fullstack development and it's main goal is to reduce friction between 
-frontend and backend team, but to avoid any mysterious allusions, here's what it does: it allows frontend to create queries that fit their needs without waiting for backend to do it,
-and backend to setup its API without too much ceremony, and change it as well.<br/>
-Intention of this tool isn't for backend to play catch-up with frontend to tweak query implementations
-or some arbitrary compiler configuration, 
-nor that frontend creates badly performing queries. The frontend will have information if a new query is similar to a disabled one,
-if a filter operation will be fast (has index configured in EF), if a join will be fast (is IQueryable used), etc. 
-On the other end, new endpoints will be compiled and recompiled to utilize "base" endpoints and overriden implementations
-as much as possible, derivatives of disabled endpoints will be auto-disabled, etc. Improving compiler performance will be the main problem,
+frontend and backend team, and provide understanding to one how the other works,
+but to avoid any mysterious allusions: it allows frontend to create queries that fit their needs without waiting for backend to do it,
+and it allows backend to setup and change its API without too much ceremony.
+
+Theoretically, the frontend would be able to get all the data it needs by using a single query, but the issue is the query implementation could be rejected
+on the backend and the frontend would not get the expected performance.
+During development, this could lead to writing a lot of badly performing queries and backend playing catch-up with frontend to tweak those query implementations.
+
+This tool will help solve this by informing frontend about performance expectations when writing queries, using TS type system,
+by telling if a new query is similar to a disabled one, if a filter operation will be fast (has index configured in EF), if a join will be fast (is IQueryable used), 
+does the query take advantage of backend overrides, etc.
+On the backend, new endpoints will be compiled and recompiled to utilize "base" endpoints and overriden implementations
+as much as possible, derivatives of disabled endpoints will be auto-disabled, etc.
+Improvement of the compiler performance will be the main focus of the future development,
 since it needs to reach a point where it feels like it does a good enough job and the layer does not need to be micro-managed.
 
-All of this leads to a much more relaxed strategy for building APIs, with minimal implementation overhead.
-Implementation also does not require building integration logic, so the agility and independence of different systems is kept.  
+After creating a well functioning, intuitive base for the API, frontend could then extend to match the view model exactly.
+The resulting API would be a result of the development process, instead of development being the result of a predefined schema.
+This approach also allows for an easy integration logic of different backend systems, so the agility and independence of different systems is maintained.

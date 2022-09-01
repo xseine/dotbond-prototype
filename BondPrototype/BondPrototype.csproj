@@ -3,136 +3,157 @@
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <Nullable>disable</Nullable>
+<!--        <SpaRoot>Angular\</SpaRoot>-->
+<!--        <SpaProxyServerUrl>https://localhost:44426</SpaProxyServerUrl>-->
+<!--        <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand>-->
+        <IsPackable>false</IsPackable>
+        <SpaRoot>Angular\</SpaRoot>
+        <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        
     </PropertyGroup>
 
-	<ItemGroup>
-	  <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.4" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.5" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.5">
-	    <PrivateAssets>all</PrivateAssets>
-	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="6.0.5" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.5" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Tools.DotNet" Version="2.0.3" />
-	  <PackageReference Include="MySqlConnector" Version="2.1.8" />
-	  <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.1" />
-	  <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.Json.Microsoft" Version="6.0.1" />
-	  <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.3.0" />
-	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.3.0" />
-	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.3.0" />
-	</ItemGroup>
-
     <ItemGroup>
-      <None Remove="Angular\dist" />
-      <None Remove="Migrations\**" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.4" />
+        <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="6.0.8" />
+        <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="6.0.8" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.5" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.5">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="6.0.5" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.5" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools.DotNet" Version="2.0.3" />
+        <PackageReference Include="MySqlConnector" Version="2.1.8" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.1" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql.Json.Microsoft" Version="6.0.1" />
+        <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.3.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.3.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.3.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Angular\src\app\actors\components" />
-      <Folder Include="Angular\src\app\actors\directives" />
-      <Folder Include="Angular\src\app\actors\services" />
-      <Folder Include="Angular\src\app\api" />
-      <Folder Include="Angular\src\app\common\services" />
-      <Folder Include="Angular\src\app\movies\services" />
-      <Folder Include="Angular\src\app\translate-demo\components" />
-      <Folder Include="Common\Utilities" />
+        <!-- Don't publish the SPA source files, but do show them in the project files list -->
+        <Content Remove="$(SpaRoot)**" />
+        <None Remove="$(SpaRoot)**" />
+        <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**" />
+    </ItemGroup>
+
+    <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
+        <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->
+<!--        <Exec WorkingDirectory="$(SpaRoot)" Command="npm install"/>-->
+<!--        <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build &#45;&#45; &#45;&#45;prod"/>-->
+<!--        <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build:ssr &#45;&#45; &#45;&#45;prod" Condition=" '$(BuildServerSideRenderer)' == 'true' "/>-->
+
+        <!-- Include the newly-built files in the publish output -->
+        <ItemGroup>
+            <DistFiles Include="$(SpaRoot)dist\**; $(SpaRoot)dist-server\**" />
+            <DistFiles Include="$(SpaRoot)node_modules\**" Condition="'$(BuildServerSideRenderer)' == 'true'" />
+            <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+                <RelativePath>%(DistFiles.Identity)</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+                <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
+    
+
+    <ItemGroup>
+        <None Remove="Migrations\**" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <EmbeddedResource Remove="Migrations\**" />
+        <EmbeddedResource Remove="Angular\.angular\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Remove="Migrations\**" />
+        <Content Update="bond.schema.json">
+            <DependentUpon>bond.json</DependentUpon>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\Biographies\benicio-bio.txt" />
+        <Content Include="Models\DataSeeding\Actors\Biographies\benicio-bio.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\Biographies\javier-bio.txt" />
+        <Content Include="Models\DataSeeding\Actors\Biographies\javier-bio.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\Biographies\josh-bio.txt" />
+        <Content Include="Models\DataSeeding\Actors\Biographies\josh-bio.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\Biographies\timothee-bio.txt" />
+        <Content Include="Models\DataSeeding\Actors\Biographies\timothee-bio.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\Biographies\woody-bio.txt" />
+        <Content Include="Models\DataSeeding\Actors\Biographies\woody-bio.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\benicio.txt" />
+        <Content Include="Models\DataSeeding\Actors\benicio.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\javier.txt" />
+        <Content Include="Models\DataSeeding\Actors\javier.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\josh.txt" />
+        <Content Include="Models\DataSeeding\Actors\josh.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\timothee.txt" />
+        <Content Include="Models\DataSeeding\Actors\timothee.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\Actors\woody.txt" />
+        <Content Include="Models\DataSeeding\Actors\woody.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\dune.txt" />
+        <Content Include="Models\DataSeeding\dune.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\no-country.txt" />
+        <Content Include="Models\DataSeeding\no-country.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <None Remove="Models\DataSeeding\sicario.txt" />
+        <Content Include="Models\DataSeeding\sicario.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <ProjectReference Include="..\Translator\Translator.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Controllers\QueryImplementations.cs.locked">
+            <DependentUpon>QueryImplementations.cs</DependentUpon>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="Controllers\QueryImplementations.cs">
+            <DependentUpon>QueryController.cs</DependentUpon>
+        </Compile>
+        <Compile Remove="Angular\.angular\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Controllers\QueryImplementations.cs.locked">
+            <DependentUpon>QueryImplementations.cs</DependentUpon>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
       <Folder Include="wwwroot" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Remove="Migrations\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Remove="Migrations\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Content Remove="Migrations\**" />
-      <Content Update="bond.schema.json">
-        <DependentUpon>bond.json</DependentUpon>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\Biographies\benicio-bio.txt" />
-      <Content Include="Models\DataSeeding\Actors\Biographies\benicio-bio.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\Biographies\javier-bio.txt" />
-      <Content Include="Models\DataSeeding\Actors\Biographies\javier-bio.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\Biographies\josh-bio.txt" />
-      <Content Include="Models\DataSeeding\Actors\Biographies\josh-bio.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\Biographies\timothee-bio.txt" />
-      <Content Include="Models\DataSeeding\Actors\Biographies\timothee-bio.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\Biographies\woody-bio.txt" />
-      <Content Include="Models\DataSeeding\Actors\Biographies\woody-bio.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\benicio.txt" />
-      <Content Include="Models\DataSeeding\Actors\benicio.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\javier.txt" />
-      <Content Include="Models\DataSeeding\Actors\javier.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\josh.txt" />
-      <Content Include="Models\DataSeeding\Actors\josh.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\timothee.txt" />
-      <Content Include="Models\DataSeeding\Actors\timothee.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\Actors\woody.txt" />
-      <Content Include="Models\DataSeeding\Actors\woody.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\dune.txt" />
-      <Content Include="Models\DataSeeding\dune.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\no-country.txt" />
-      <Content Include="Models\DataSeeding\no-country.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-      <None Remove="Models\DataSeeding\sicario.txt" />
-      <Content Include="Models\DataSeeding\sicario.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
-    </ItemGroup>
-
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="wwwroot\js\site.js" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\Translator\Translator.csproj" />
-    </ItemGroup>
-
-     <ItemGroup>
-	  <None Update="Controllers\QueryImplementations.cs.locked">
-        <DependentUpon>QueryImplementations.cs</DependentUpon>
-      </None>
-    </ItemGroup>
-
-    <ItemGroup>
-	  <Compile Update="Controllers\QueryImplementations.cs">
-        <DependentUpon>QueryController.cs</DependentUpon>
-      </Compile>
-    </ItemGroup>
-
-     <ItemGroup>
-	  <None Update="Controllers\QueryImplementations.cs.locked">
-        <DependentUpon>QueryImplementations.cs</DependentUpon>
-      </None>
     </ItemGroup>
 
 </Project>

@@ -1,5 +1,5 @@
 
 export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}} = {
-	'MovieApi': {'GetMoviesFromAYear': ['releaseDate'], 'GetMovies': ['releaseDate'], },
+	'MovieApi': {'GetMovies': ['releaseDate'], 'GetMoviesFromAYear': ['releaseDate'], },
 	'TranslateDemo': {},
 };

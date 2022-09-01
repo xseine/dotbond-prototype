@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
+import {ChangeDetectionStrategy, Component, ElementRef, Inject, OnInit, ViewChild} from '@angular/core';
 import {IComponentHeaderText} from '../app.component';
 import {concat, filter, fromEvent, last, map, merge, mergeScan, mergeWith, Observable, of, scan, shareReplay, startWith, Subject, switchMap, take, tap} from 'rxjs';
 import {QueryService} from '../api/actions/query.service';
@@ -6,6 +6,7 @@ import {getParams} from '../api/actions/library/miscellaneous';
 import {FormBuilder, FormGroup} from '@angular/forms';
 import {HttpClient} from '@angular/common/http';
 import {CdkDragDrop, moveItemInArray} from '@angular/cdk/drag-drop';
+import {ENVIRONMENT_PROVIDER} from '../../core/services/enviroment.provider';
 
 @Component({
     selector: 'app-benchmark',
@@ -35,7 +36,7 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
 
     @ViewChild('trigger', {read: ElementRef}) dialogTrigger: ElementRef;
 
-    constructor(private _api: QueryService, private _fb: FormBuilder, private _httpClient: HttpClient) {
+    constructor(private _api: QueryService, private _fb: FormBuilder, private _httpClient: HttpClient, @Inject(ENVIRONMENT_PROVIDER) private _environment: any) {
 
         // import dialog required module
         import('@spectrum-web-components/overlay');
@@ -133,7 +134,12 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
         let methodDefinition = this._api[queryName].originalMethod as string;
         let parameters = getParams(methodDefinition);
 
-        return parameters.length ? parameters : null;
+        if (!parameters.length) return null;
+        
+        if (this._environment.production)
+            parameters = parameters.map((_, idx) => `param${idx}`)
+        
+        return parameters
     }
 
 

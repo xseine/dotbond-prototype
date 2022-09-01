@@ -161,7 +161,7 @@ export class {controllerName} {{
     return $@"
     @method('{httpMethod}'{(usesSimpleRoute ? ", true" : null)})
     {actionName}({parametersString}): Observable<{returnString}> {{
-        return {{}} as any; // Ignored
+        return [{string.Join(", ", parameters.Select(e => $"'{e.Name}'"))}] as any;
     }}
 "; }))}
 }}

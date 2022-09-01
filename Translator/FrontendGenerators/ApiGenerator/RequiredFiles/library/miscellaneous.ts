@@ -32,12 +32,11 @@ export function fromUri(target: Object, propertyKey: string | symbol, parameterI
  */
 export function method(methodName: 'GET' | 'POST', usesSimpleRoute = false) {
     return function (target: any, propertyName: string, descriptor: TypedPropertyDescriptor<(...args: any) => Observable<any>>) {
-        let method = descriptor.value!;
-        let argumentNames = getParams(method);
+        let argumentNames = descriptor.value() as any as string[];
 
         let fromBodyParameter = argumentNames[Reflect.getOwnMetadata(fromBodyMetadataKey, target, propertyName) as number];
         let fromUriParameters = (Reflect.getOwnMetadata(fromUriMetadataKey, target, propertyName) as number[])?.map(e => argumentNames[e]);
-        
+
         // Override the action method to return the method type and method parameters
         descriptor.value = function () {
             return [methodName, argumentNames, usesSimpleRoute, fromBodyParameter, fromUriParameters] as any;
@@ -60,11 +59,11 @@ let isStackEmpty = true;
 export let queryInstanceId: { 'id': number } = {id: null};
 let queryInstanceIdSequence = 1;
 
-let requestCacheInCustomQuery: {[instanceId: number]: { [baseUrl: string]: { [queries: string]: { argumentObject: any, resultPromise: Promise<any>, resultResolve: any }[] } }} = {};
+let requestCacheInCustomQuery: { [instanceId: number]: { [baseUrl: string]: { [queries: string]: { argumentObject: any, resultPromise: Promise<any>, resultResolve: any }[] } } } = {};
 let checkInCache = (instanceId: number, baseUrl: string, queries: string, argumentObject: any) => requestCacheInCustomQuery[instanceId]?.[baseUrl]?.[queries]?.find(e => JSON.stringify(e.argumentObject) === JSON.stringify(argumentObject))?.resultPromise;
 
 // Internal api config for benchmarking client-side performance
-let isQueryForcedClientSide: {[instanceId: number]: boolean} = {};
+let isQueryForcedClientSide: { [instanceId: number]: boolean } = {};
 
 
 /**
@@ -116,7 +115,7 @@ export function customQuery(target: any, propertyName: string, descriptor: Typed
         }
 
         queryInstanceId.id = null;
-        
+
         if (clearStackWhenDone) {
             isStackEmpty = true;
             latestResponseFirstActiveQuery = new String();
@@ -136,17 +135,17 @@ export let latestResponseFirstActiveQuery: String | null = new String();
 /**
  * Overrides action methods to make an http call when invoked.
  * Action method and parameters are introspected from the ts decorator that is added on the action definition.
+ * @param controllerName
  * @param controller
  * @param http
  * @param serverAddress
  * @param isBaseController
  */
-export function implementHttpCallsInController(controller: any, http: HttpClient, serverAddress: string, isBaseController: boolean): void {
+export function implementHttpCallsInController(controllerName: string, controller: any, http: HttpClient, serverAddress: string, isBaseController: boolean): void {
 
     // Scenario of 
     if (!serverAddress) return;
 
-    let controllerName = Object.getPrototypeOf(controller).constructor.name.replace('Controller', '');
     let actions = Object.getOwnPropertyNames(Object.getPrototypeOf(controller)).filter(name => name !== 'constructor');
 
     for (let actionName of actions) {
@@ -157,7 +156,6 @@ export function implementHttpCallsInController(controller: any, http: HttpClient
 
         // Fallback url is used to tell server which data to fetch in case the composed query doesn't have an active endpoint.
         let baseUrl = `${serverAddress}/${controllerName}` + (!usesSimpleRoute ? `/${actionName}` : '');
-
 
         // Override the action method to make the http request
         controller[actionName] = function () {
@@ -171,7 +169,7 @@ export function implementHttpCallsInController(controller: any, http: HttpClient
                     argumentObject = {...argumentObject, ...args};
                     queryUrls.push(queryName)
                 }
-            
+
             let body: any;
             if (method === 'POST')
                 [argumentObject, body] = configurePostRequest(fromUriParameters, fromBodyParameter, argumentObject);
@@ -181,7 +179,7 @@ export function implementHttpCallsInController(controller: any, http: HttpClient
             let cacheHit;
             let resultResolve;
             let isCustomQuery = !!queryInstanceId.id;
-            
+
             if (isCustomQuery) {
                 cacheHit = checkInCache(queryInstanceId.id, baseUrl, queryUrls.join(','), argumentObject);
                 if (!cacheHit) {
@@ -245,7 +243,7 @@ function executeRequest<THeaders extends { [p: string]: string | string[] }>(htt
     // Remove nulls query parameters
     parameters = Object.fromEntries(Object.entries(parameters).filter(([_, v]) => v != null));
     let request = method === 'GET' ? http.get(url, {params: parameters, headers, observe: 'response'}) : http.post(url, body, {params: parameters, headers, observe: 'response'})
-    
+
     return request.pipe(map(response => {
 
         let body = response.body;

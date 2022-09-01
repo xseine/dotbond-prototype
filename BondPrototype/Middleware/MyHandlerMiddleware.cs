@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -19,6 +20,8 @@ public static class MyHandlerMiddleware
         
         builder.Use(async (context, next) =>
         {
+            context.Request.Path = Regex.Replace(context.Request.Path, @"^/api(?=/.+)", "");
+        
             var bondQueriesHeader = context.Request.Headers["bond-queries"].FirstOrDefault();
             if (bondQueriesHeader == null)
             {
@@ -27,13 +30,21 @@ public static class MyHandlerMiddleware
             }
 
             var bondQueries = bondQueriesHeader.Split(",");
-            var firstActiveQuery = bondQueries.FirstOrDefault(queryName => _bondActions.Any(e => e.ActionName == queryName));
+            var firstActiveQueryName = bondQueries.FirstOrDefault(queryName => _bondActions.Any(e => e.ActionName == queryName));
             
-            context.Response.Headers.Add("first-active-query", firstActiveQuery);
-            if (firstActiveQuery != null) {
-                context.Request.Path = PathString.FromUriComponent($"/Query/{firstActiveQuery}");
-                context.Request.Query = new QueryCollection(context.Request.Query.Where(pair => pair.Key.StartsWith(firstActiveQuery + "-"))
-                    .Select(pair => (Key: pair.Key[(firstActiveQuery.Length + 1)..], pair.Value)).ToDictionary(e => e.Key, e => e.Value));
+            context.Response.Headers.Add("first-active-query", firstActiveQueryName);
+            if (firstActiveQueryName != null) {
+                context.Request.Path = PathString.FromUriComponent($"/Query/{firstActiveQueryName}");
+                var activeQueryParams = context.Request.Query.Where(pair => pair.Key.StartsWith(firstActiveQueryName + "-"))
+                    .Select(pair => (Key: pair.Key[(firstActiveQueryName.Length + 1)..], pair.Value)).ToList();
+                
+                if (activeQueryParams.Any() && activeQueryParams.First().Key == "param0")
+                {
+                    var paramNames = _bondActions.First(e => e.ActionName == firstActiveQueryName).Parameters.Select(e => e.Name).ToList();
+                    activeQueryParams = activeQueryParams.Select((pair, idx) => (paramNames[0], pair.Value)).ToList();
+                }
+
+                context.Request.Query = new QueryCollection(activeQueryParams.ToDictionary(e => e.Key, e => e.Value));
             }
             
             await next.Invoke();

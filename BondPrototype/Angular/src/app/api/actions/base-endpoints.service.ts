@@ -30,7 +30,7 @@ export class BaseEndpointsService {
         for (let controllerName in this) {
             if (controllerName === 'http' || controllerName === 'server') continue;
 
-            implementHttpCallsInController(this[controllerName], this.http, this.server, true);
+            implementHttpCallsInController(controllerName, this[controllerName], this.http, this.server, true);
         }
 
     }
@@ -50,13 +50,13 @@ export class EndpointsContext {
     constructor(protected endpointsService: BaseEndpointsService, currentCustomQueryName: {name: string}) {
     }
 
-    public MovieApi = createQueryableController(new MovieApiController(), this.endpointsService);
-	public TranslateDemo = createQueryableController(new TranslateDemoController(), this.endpointsService);
+    public MovieApi = createQueryableController('MovieApi', new MovieApiController(), this.endpointsService);
+	public TranslateDemo = createQueryableController('TranslateDemo', new TranslateDemoController(), this.endpointsService);
 }
 
 // @ts-ignore
-function createQueryableController<TController>(controller: TController, endpointsService: BaseEndpointsService): { [TAction in keyof TController]: (...args: Parameters<TController[TAction]>) => IQueryable<ReturnType<TController[TAction]> extends Observable<infer U> ? U : never> } {
-    implementHttpCallsInController(controller, endpointsService.http, endpointsService.server, false);
+function createQueryableController<TController>(controllerName: string, controller: TController, endpointsService: BaseEndpointsService): { [TAction in keyof TController]: (...args: Parameters<TController[TAction]>) => IQueryable<ReturnType<TController[TAction]> extends Observable<infer U> ? U : never> } {
+    implementHttpCallsInController(controllerName, controller, endpointsService.http, endpointsService.server, false);
 
     let actionNames = Object.getOwnPropertyNames(Object.getPrototypeOf(controller)).filter(name => name !== 'constructor');
 
