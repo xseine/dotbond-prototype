@@ -45,3 +45,5 @@ The API would be a result of the development process, instead of the process bei
 This approach also allows for an easy integration logic of different backend systems, so the agility and independence of different systems is maintained.
 
 Tool will be usable inside a single code repository or inside multiple, using GitHub Actions.
+
+<img src="https://i.imgur.com/kyGsqP5.png" />
