@@ -46,4 +46,4 @@ This approach also allows for an easy integration logic of different backend sys
 
 Tool will be usable inside a single code repository or inside multiple, using GitHub Actions.
 
-<img src="https://i.imgur.com/gWUwYMj.png" />
+<img src="https://i.imgur.com/d0DVlfy.png" />
