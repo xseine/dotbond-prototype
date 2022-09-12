@@ -9,9 +9,15 @@ import declarationsSource from './examples/declarations.txt';
 // @ts-ignore
 import basicsSource from './examples/basics.txt';
 // @ts-ignore
+import basics2Source from './examples/basics2.txt';
+// @ts-ignore
 import linqSource from './examples/linq.txt';
 // @ts-ignore
 import patternMatchingSource from './examples/pattern-matching.txt';
+// @ts-ignore
+import dictionariesSource from './examples/dictionaries.txt';
+// @ts-ignore
+import carSource from './examples/car.txt';
 import {spToast} from '../common/other/spToast';
 import {UntilDestroy} from '@ngneat/until-destroy';
 import XRegExp from 'xregexp';
@@ -32,8 +38,8 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
     @ViewChild('csharp', {read: ElementRef}) csharpTextArea: ElementRef;
     @ViewChild('consoleTrayTrigger', {read: ElementRef}) consoleTrayTrigger: ElementRef;
     @ViewChild('saveAsModalTrigger', {read: ElementRef}) saveAsModalTrigger: ElementRef;
-    
-    builtInExamples = ['Basics', 'Object Creation', 'Declarations', 'LINQ', 'Pattern Matching'] as const;
+
+    builtInExamples = ['Basics', 'Basics 2', 'Object Creation', 'Declarations', 'LINQ', 'Pattern Matching', 'Dictionaries', 'Car'] as const;
     translateClick = new Subject<void>();
     isLoadingTranslation = false;
     translation$: Observable<string>;
@@ -41,17 +47,19 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
     isPoppedOut = false;
     executionResults: any[] = [];
     executionException: string;
-    
+
     // Used for saving current code to localStorage
     nameOfUserCodeSheet: string;
+
     get userCodeSheets(): string[] {
         let savedUserSheets = JSON.parse(localStorage.getItem(USER_SHEETS_KEY)) ?? {};
         return Object.keys(savedUserSheets);
     }
+
     subscriptions: Subscription[] = [];
 
     constructor(private _api: QueryService, private _cd: ChangeDetectorRef) {
-        
+
         // Main observable
         this.translation$ = this.translateClick.asObservable().pipe(
             switchMap(_ => fromEvent(this.csharpTextArea.nativeElement, 'keyup').pipe(
@@ -76,6 +84,20 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
     }
 
     ngAfterViewInit(): void {
+        let nativeTextArea = this.csharpTextArea.nativeElement.shadowRoot.querySelector('textarea');
+
+        nativeTextArea.addEventListener('keydown', (e) => {
+            if (e.keyCode === 9) {
+                e.preventDefault()
+
+                nativeTextArea.setRangeText(
+                    '    ',
+                    nativeTextArea.selectionStart,
+                    nativeTextArea.selectionStart,
+                    'end'
+                )
+            }
+        })
     }
 
     /*========================== Event Listeners ==========================*/
@@ -87,23 +109,29 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
                 ? declarationsSource
                 : example === 'Basics'
                     ? basicsSource
-                    : example === 'LINQ'
-                        ? linqSource
-                        : example === 'Pattern Matching' ?
-                            patternMatchingSource 
-                            : null;
+                        : example === 'Basics 2'
+                            ? basics2Source
+                            : example === 'LINQ'
+                                ? linqSource
+                                : example === 'Pattern Matching' ?
+                                    patternMatchingSource
+                                    : example === 'Dictionaries'
+                                        ? dictionariesSource
+                                        : example === 'Car'
+                                            ? carSource
+                                            : null;
 
         // If null, then it's a saved user sheet
         if (!value) {
             let savedUserSheets = JSON.parse(localStorage.getItem(USER_SHEETS_KEY));
             let entry = Object.entries(savedUserSheets).find(([key, _]) => key === example);
-            
+
             if (entry) {
                 this.nameOfUserCodeSheet = entry[0];
                 value = entry[1];
             }
         }
-        
+
         this.csharpTextArea.nativeElement.value = value;
         this.selectedExample.next();
     }
@@ -132,46 +160,57 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
             s1.unsubscribe();
             this.isPoppedOut = false;
             this._cd.detectChanges();
-            
+
             // No idea, but translated content was empty before this line
             setTimeout(() => this._cd.detectChanges());
         });
 
     }
-    
+
     public async executeTs() {
         let tsSource = await firstValueFrom(this.translation$);
-        
+
         let ts = window['ts'] as any;
         let options = {compilerOptions: {module: ts.ModuleKind.ES2015, target: ts.ScriptTarget.ES2017}};
-        
+
         let jsSource = ts.transpileModule(tsSource, options).outputText as string;
-        
+
 
         let matchedDefinitions = [];
         let balancedCurlyBRaces = XRegExp.matchRecursive(jsSource, '\\{', '\\}', 'g');
-        balancedCurlyBRaces.map(e => new RegExp('class \\w+ \\{' + e + '\\}')).forEach(e => {
+        balancedCurlyBRaces.map(e => new RegExp('(export )?class \\w+ \\{' + escapeRegExp(e) + '\\}')).forEach(e => {
             let matchedDefinition = jsSource.match(e)?.[0];
-            
+
             if (matchedDefinition) {
                 jsSource = jsSource.replace(matchedDefinition, '');
                 matchedDefinitions.push(matchedDefinition);
             }
         })
-        
+
+        // namespaces are defines as iife 
+        balancedCurlyBRaces.map(e => new RegExp('\\(function \\(.*?\\) \\{' + escapeRegExp(e) + '\\}\\)\\([^)]+\\)\\)')).forEach(e => {
+            let matchedDefinition = jsSource.match(e)?.[0];
+
+            if (matchedDefinition) {
+                jsSource = jsSource.replace(matchedDefinition, '');
+                matchedDefinitions.push(matchedDefinition);
+            }
+        })
+
+
         // Put definition at the top of the page
-        jsSource = matchedDefinitions.join("\n") + "\n" + jsSource;
-        
+        jsSource = matchedDefinitions.join('\n') + '\n' + jsSource;
+
         // remove export
         jsSource = jsSource.replace(/export \{.*?};/g, '');
-        jsSource = jsSource.replace(/export (?=class|function|const|let)/g, '');
-        
+        jsSource = jsSource.replace(/export (?=class|function|const|let|enum|var)/g, '');
+
         let consoleOverride = `
 let console = {};
 let __result = [];
 console.log = function () {__result = [...__result, ...arguments];};
 `;
-        
+
         jsSource = consoleOverride + jsSource;
         jsSource += 'return __result';
 
@@ -180,13 +219,13 @@ console.log = function () {__result = [...__result, ...arguments];};
 
         this.executionResults = null;
         this.executionException = null;
-        
+
         try {
             this.executionResults = (Function(jsSource)() as any[]).map(e => JSON.stringify(e, null, '\t'));
         } catch (e) {
             this.executionException = e.toString();
         }
-        
+
         this.consoleTrayTrigger.nativeElement.click();
     }
 
@@ -197,12 +236,12 @@ console.log = function () {__result = [...__result, ...arguments];};
     public save(name?: string) {
         name = name ?? this.nameOfUserCodeSheet;
         if (!name) return this.saveAs();
-        
+
         let currentCode = this.csharpTextArea.nativeElement.value;
-        
+
         let savedUserSheets = JSON.parse(localStorage.getItem(USER_SHEETS_KEY));
         savedUserSheets = {...savedUserSheets, [name]: currentCode};
-        
+
         localStorage.setItem(USER_SHEETS_KEY, JSON.stringify(savedUserSheets));
         spToast.positive('Saved successfully');
     }
@@ -229,7 +268,7 @@ console.log = function () {__result = [...__result, ...arguments];};
         let savedUserSheets = JSON.parse(localStorage.getItem(USER_SHEETS_KEY));
         savedUserSheets = Object.fromEntries(Object.entries(savedUserSheets).filter(([key, _]) => key !== this.nameOfUserCodeSheet));
         localStorage.setItem(USER_SHEETS_KEY, JSON.stringify(savedUserSheets));
-        
+
         this.csharpTextArea.nativeElement.value = '';
         this.nameOfUserCodeSheet = null;
     }
@@ -243,4 +282,8 @@ console.log = function () {__result = [...__result, ...arguments];};
         return new Event(eventName);
     }
 
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }

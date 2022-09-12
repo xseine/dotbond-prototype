@@ -32,7 +32,7 @@ public partial class Rewriter
             return base.VisitIdentifierName(node);
 
         var parent = node.Parent!;
-        if (parent is NameEqualsSyntax) return base.VisitIdentifierName(node);
+        if (parent is NameEqualsSyntax or NameColonSyntax) return base.VisitIdentifierName(node);
 
         var hasDotBeforeIt = parent.DescendantNodesAndTokens().TakeWhile(nodeOrToken => nodeOrToken != node).Reverse()
             .TakeWhile(nodeOrToken => nodeOrToken.IsKind(SyntaxKind.DotToken) || nodeOrToken.IsKind(SyntaxKind.WhitespaceTrivia))
@@ -41,8 +41,11 @@ public partial class Rewriter
         var isInsideObjectInitializer = parent.IsKind(SyntaxKind.SimpleAssignmentExpression) && (parent.Parent?.IsKind(SyntaxKind.ObjectInitializerExpression) ?? false);
 
         if (hasDotBeforeIt == false && isInsideObjectInitializer == false)
-            return base.VisitIdentifierName(node).ChangeIdentifierToCamelCase()
-                .WithLeadingTrivia(node.GetLeadingTrivia().Add(SyntaxFactory.SyntaxTrivia(SyntaxKind.WhitespaceTrivia, "this.")));
+            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                SyntaxFactory.IdentifierName("this"),
+                node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia())
+                .WithLeadingTrivia(node.GetLeadingTrivia())
+                .WithTrailingTrivia(node.GetTrailingTrivia());
 
         return base.VisitIdentifierName(node).ChangeIdentifierToCamelCase();
     }
@@ -85,7 +88,14 @@ public partial class Rewriter
     // Removes return type of local function, and adds the function keyword
     public override SyntaxNode VisitLocalFunctionStatement(LocalFunctionStatementSyntax node)
     {
-        return ((LocalFunctionStatementSyntax)base.VisitLocalFunctionStatement(node)!).WithReturnType(SyntaxFactory.ParseTypeName("function ")).WithLeadingTrivia(node.GetLeadingTrivia());
+        var overrideVisit = (LocalFunctionStatementSyntax)base.VisitLocalFunctionStatement(node);
+        if (overrideVisit.ExpressionBody != null)
+        {
+            overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(overrideVisit.ExpressionBody.Expression)));
+            overrideVisit = overrideVisit.WithExpressionBody(null);
+        }
+        
+        return overrideVisit.WithModifiers(default).WithReturnType(SyntaxFactory.ParseTypeName("function ")).WithLeadingTrivia(node.GetLeadingTrivia());
     }
 
     // Removes type casting (int), (string), ...
@@ -103,10 +113,26 @@ public partial class Rewriter
             var overrideVisit = (BinaryExpressionSyntax)base.VisitBinaryExpression(node);
             return overrideVisit.Left.WithTrailingTrivia(node.GetTrailingTrivia());
         }
-        else if (node.IsKind(SyntaxKind.IsExpression))
+
+        if (node.IsKind(SyntaxKind.IsExpression))
         {
             var overrideVisit = (BinaryExpressionSyntax)base.VisitBinaryExpression(node);
             return RewriteIsExpression(overrideVisit);
+        }
+
+        // Division of integers is rounded in C#
+        if (node.IsKind(SyntaxKind.DivideExpression))
+        {
+            var isLeftOperandDecimal = SemanticModel.GetTypeInfo(node.Left).Type.Name is "Float" or "Double" or "Decimal";
+            var isRightOperandDecimal = SemanticModel.GetTypeInfo(node.Right).Type.Name is "Float" or "Double" or "Decimal";
+
+            if (!isLeftOperandDecimal && !isRightOperandDecimal)
+            {
+                var overrideVisit = base.VisitBinaryExpression(node) as BinaryExpressionSyntax;
+                return SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                        SyntaxFactory.IdentifierName("Math"), SyntaxFactory.IdentifierName("floor")),
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new []{SyntaxFactory.Argument(overrideVisit)})));
+            }
         }
 
         return base.VisitBinaryExpression(node);
@@ -118,7 +144,7 @@ public partial class Rewriter
     /// </summary>
     /// <param name="overrideVisit"></param>
     /// <returns><see cref="IsPatternExpressionSyntax"/>, with the appropriate syntax</returns>
-    public BinaryExpressionSyntax RewriteIsExpression(BinaryExpressionSyntax overrideVisit)
+    public ExpressionSyntax RewriteIsExpression(BinaryExpressionSyntax overrideVisit)
     {
         var isToken = overrideVisit.OperatorToken;
         overrideVisit = overrideVisit.WithOperatorToken(SyntaxFactory.Token(isToken.LeadingTrivia, SyntaxKind.IsKeyword, "==", "", isToken.TrailingTrivia));
@@ -130,11 +156,16 @@ public partial class Rewriter
             var subClasses = RoslynUtilities.GetSubclasses(SemanticModel.Compilation, id.Identifier.Text);
             var leftWithTrivia = left.WithTrailingTrivia(left.GetTrailingTrivia().Prepend("?.constructor"));
 
-            if (subClasses.Count == 0) return SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, id);
+            var exactConstructorCheck = (SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, id));
+            
+            if (subClasses.Count == 0) return exactConstructorCheck;
 
-            return subClasses.Aggregate(SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, SyntaxFactory.IdentifierName($" '{id}'")),
+            leftWithTrivia = leftWithTrivia.WithTrailingTrivia(leftWithTrivia.GetTrailingTrivia().ToArray()[1..].Prepend("?.constructor.name"));
+            
+            return SyntaxFactory.ParenthesizedExpression(subClasses.Aggregate(exactConstructorCheck,
                 (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalOrExpression, acc.WithTrailingTrivia(" "),
-                    SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, SyntaxFactory.IdentifierName($" '{curr}'")).WithLeadingTrivia(" ")));
+                    SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, SyntaxFactory.IdentifierName($" '{curr}'")).WithLeadingTrivia(" ")))
+                .WithLeadingTrivia());
         }
         
         
@@ -148,7 +179,7 @@ public partial class Rewriter
 
         overrideVisit = overrideVisit
             .WithLeft(isPrimitive ? left.WithLeadingTrivia(left.GetLeadingTrivia().Append("typeof ")) : left.WithTrailingTrivia(left.GetTrailingTrivia().Prepend("?.constructor")))
-            .WithRight(SyntaxFactory.ParseExpression($"'{rhs}'").WithLeadingTrivia(right.GetLeadingTrivia()).WithTrailingTrivia(right.GetTrailingTrivia()));
+            .WithRight(SyntaxFactory.ParseExpression(isPrimitive ? $"'{rhs}'" : $"{rhs}").WithLeadingTrivia(right.GetLeadingTrivia()).WithTrailingTrivia(right.GetTrailingTrivia()));
 
 
         return overrideVisit;
@@ -240,5 +271,10 @@ public partial class Rewriter
         };
 
         return SyntaxFactory.ThrowStatement(SyntaxFactory.ParseExpression($" {message}")).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+    }
+
+    public override SyntaxNode VisitTypeOfExpression(TypeOfExpressionSyntax node)
+    {
+        return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, CreateToken(SyntaxKind.StringLiteralToken, $"'{TypeTranslation.ParseType(node.Type, SemanticModel)}'"));
     }
 }

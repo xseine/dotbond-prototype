@@ -23,7 +23,7 @@ namespace ConsoleApp1.Common
                     or "Int64" or "UInt32" or "UInt64" or "short" or "byte" or "long" or "decimal" => "number",
                 "bool" => "boolean",
                 "DateTime" or "DateTimeOffset" => "Date",
-                "Guid" or "String" => "string",
+                "Guid" or "String" or "char" => "string",
                 "dynamic" or "object" => "any",
                 _ => null
             };
@@ -65,9 +65,10 @@ namespace ConsoleApp1.Common
 
                 GenericNameSyntax
                 {
-                    Identifier.Text: "IDictionary" or "Dictionary"
-                    or "SortedDictionary" or "IReadOnlyDictionary"
-                } dictionary => $"{{[key: {dictionary.TypeArgumentList.Arguments[0]}]: {dictionary.TypeArgumentList.Arguments[1]}}}",
+                    Identifier.Text: "IDictionary" or "Dictionary" or "KeyValuePair"
+                    or "SortedDictionary" or "IReadOnlyDictionary" or "ReadOnlyDictionary"
+                } dictionary => $"{{[key: {ParseType(dictionary.TypeArgumentList.Arguments[0], (typeSymbol as INamedTypeSymbol)?.TypeArguments[0])}]" + 
+                                $": {ParseType(dictionary.TypeArgumentList.Arguments[1], (typeSymbol as INamedTypeSymbol)?.TypeArguments[1])}}}",
 
                 GenericNameSyntax generic when typeSymbol is INamedTypeSymbol or null =>
                     $"{generic.Identifier.Text}<{string.Join(", ", generic.TypeArgumentList.Arguments.Select((arg, idx) => ParseType(arg, (typeSymbol as INamedTypeSymbol)?.TypeArguments[idx])))}>",

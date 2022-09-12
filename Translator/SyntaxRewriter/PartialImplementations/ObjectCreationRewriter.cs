@@ -84,7 +84,7 @@ public partial class Rewriter
         // Find imports from other files
         GetSymbolsFromTypeSyntax(node.Type);
 
-        var type = GetFullTypeSyntax(node);
+        var type = GetFullTypeSyntax(node.Type);
 
         // (1) or simply return the node
         if (node.Initializer == null) return base.VisitObjectCreationExpression(node.WithType(type));
@@ -154,7 +154,9 @@ public partial class Rewriter
         else
         {
             var statements = new SyntaxList<SyntaxNode>();
-            var a = overrideVisit.WithInitializer(null).WithLeadingTrivia(SyntaxFactory.Space).WithoutTrailingTrivia();
+            var a = typeName != "Dictionary" 
+                ? overrideVisit.WithInitializer(null).WithLeadingTrivia(SyntaxFactory.Space).WithoutTrailingTrivia()
+                : SyntaxFactory.ParseExpression($"{{}} as {TypeTranslation.ParseType(node.Type, SemanticModel)}");
             var newLocalDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
                 SyntaxFactory.IdentifierName("let").WithLeadingTrivia(fieldLeadingTrivia).WithTrailingTrivia(SyntaxFactory.Space),
                 new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(
@@ -172,7 +174,7 @@ public partial class Rewriter
                 if (idx == 0) assignmentExpressionSyntax = expression.WithLeadingTrivia(openingBlockTrivia.Concat(expression.GetLeadingTrivia()));
                 // Prepend "__ret." to assignment
                 assignmentExpressionSyntax = assignmentExpressionSyntax.WithLeft(
-                    assignmentExpressionSyntax.Left.WithLeadingTrivia(assignmentExpressionSyntax.Left.GetLeadingTrivia().Append("__ret.")));
+                    assignmentExpressionSyntax.Left.WithLeadingTrivia(assignmentExpressionSyntax.Left.GetLeadingTrivia().Append("__ret" + (assignmentExpressionSyntax.Left.IsKind(SyntaxKind.ImplicitElementAccess) ? "" : "."))));
 
                 statements = statements.Add(SyntaxFactory.ExpressionStatement(assignmentExpressionSyntax.WithoutTrailingTrivia()).WithTrailingTrivia(trailingTrivias[idx++]));
             }
@@ -185,18 +187,12 @@ public partial class Rewriter
             var closingBlockTrivia = overrideVisit.Initializer.Expressions.Last().GetTrailingTrivia();
 
             var blockStatement = SyntaxFactory.Block(statements)
-                .WithOpenBraceToken(SyntaxFactory.MissingToken(SyntaxKind.OpenBraceToken))
-                .WithCloseBraceToken(SyntaxFactory.MissingToken(SyntaxKind.CloseBraceToken))
-                .WithLeadingTrivia(openingBlockTrivia)
+                .WithOpenBraceToken(CreateToken(SyntaxKind.OpenBraceToken, " {").WithTrailingTrivia(openingBlockTrivia))
                 .WithTrailingTrivia(closingBlockTrivia);
             // .WithoutTrailingTrivia();
 
-            var creationLeadingTrivia = node.HasLeadingTrivia ? string.Join("", node.GetLeadingTrivia().Select(e => e.ToFullString())) : null;
-            var altTabTrivia = string.Join("", fieldLeadingTrivia.Select(e => e.ToFullString()));
-            altTabTrivia = altTabTrivia.EndsWith("\t") ? altTabTrivia[..^1] : altTabTrivia.Length >= 4 ? altTabTrivia[..^4] : altTabTrivia;
-            var parsed = SyntaxFactory.ParseExpression(creationLeadingTrivia + "(() => {" + blockStatement.ToFullString() + altTabTrivia + "})()");
-
-            return parsed;
+            var closingTrivia = SyntaxFactory.TriviaList(fieldLeadingTrivia.SkipLast(1));
+            return CreateIIFE(node.GetLeadingTrivia(), blockStatement, closingTrivia);
         }
     }
 
@@ -237,12 +233,11 @@ public partial class Rewriter
         }
     }
 
-    private TypeSyntax GetFullTypeSyntax(ObjectCreationExpressionSyntax node)
+    private TypeSyntax GetFullTypeSyntax(TypeSyntax type)
     {
-        var type = node.Type;
-        var typeSymbol = SemanticModel.SyntaxTree.GetRoot().Contains(node.Type) ? SemanticModel.GetTypeInfo(node.Type).Type ?? SemanticModel.GetSymbolInfo(node.Type).Symbol as ITypeSymbol : null;
+        var typeSymbol = SemanticModel.SyntaxTree.GetRoot().Contains(type) ? SemanticModel.GetTypeInfo(type).Type ?? SemanticModel.GetSymbolInfo(type).Symbol as ITypeSymbol : null;
         var containingPath = TypeTranslation.GetContainingTypesPath(typeSymbol);
-        if (containingPath != null) type = SyntaxFactory.ParseTypeName(containingPath + "." + ((IdentifierNameSyntax)node.Type).Identifier.Text);
+        if (containingPath != null) type = SyntaxFactory.ParseTypeName(containingPath + "." + ((IdentifierNameSyntax)type).Identifier.Text);
         return type;
     }
 

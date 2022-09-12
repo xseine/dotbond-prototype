@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BondPrototype", "BondProtot
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Translator", "Translator\Translator.csproj", "{0F234349-D4BE-4500-AEB1-6E91D24EB28E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TranslatorTests", "TranslatorTests\TranslatorTests.csproj", "{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{0F234349-D4BE-4500-AEB1-6E91D24EB28E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0F234349-D4BE-4500-AEB1-6E91D24EB28E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0F234349-D4BE-4500-AEB1-6E91D24EB28E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

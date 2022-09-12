@@ -48,7 +48,9 @@ public partial class Rewriter
         }
         else if (overridePattern is ConstantPatternSyntax constant)
         {
-            resultExpression = SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, overrideVisit.Expression, constant.Expression.WithLeadingTrivia(SyntaxFactory.Space));
+            resultExpression = constant.Expression.IsKind(SyntaxKind.IdentifierName)
+                ? RewriteIsPattern(overrideVisit.Expression, overrideVisit.IsKeyword, constant.Expression) 
+                : SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, overrideVisit.Expression, constant.Expression.WithLeadingTrivia(SyntaxFactory.Space));
         }
         else if (overridePattern is RelationalPatternSyntax relational)
         {
@@ -85,7 +87,7 @@ public partial class Rewriter
             .Select(propertyPattern =>
             {
                 // property name, prefixed with the path of that property
-                var path = patternPathOfIdentifiers.Count > 0 ? new String('(', patternPathOfIdentifiers.Count) + string.Join("?.", patternPathOfIdentifiers) + "?." : null;
+                var path = patternPathOfIdentifiers.Count > 0 ? new String('(', patternPathOfIdentifiers.Count(e => e.EndsWith(")"))) + string.Join("?.", patternPathOfIdentifiers) + "?." : null;
                 var name = SyntaxFactory.ParseExpression(path + propertyPattern.NameColon.Name.Identifier.Text);
                 
                 var newCondition = propertyPattern.Pattern switch
@@ -99,9 +101,12 @@ public partial class Rewriter
                     _ => null
                 };
 
-                (string, ExpressionSyntax)? declarationReplacement = propertyPattern.Pattern is DeclarationPatternSyntax declaration ?
-                    (((SingleVariableDesignationSyntax)declaration.Designation).Identifier.Text, name) :
-                    null;
+                (string, ExpressionSyntax)? declarationReplacement = propertyPattern.Pattern switch
+                {
+                    DeclarationPatternSyntax declaration => (((SingleVariableDesignationSyntax)declaration.Designation).Identifier.Text, name),
+                    VarPatternSyntax var => (((SingleVariableDesignationSyntax)var.Designation).Identifier.Text, name),
+                    _ => null
+                };
 
                 return (newCondition, declarationReplacement);
             });
@@ -111,15 +116,15 @@ public partial class Rewriter
         
         SyntaxNode HandleRecursivePatternParents(SyntaxNode syntaxNode)
         {
-            var originalType = TypeTranslation.ParseType(patternType, SemanticModel);
+            var originalType = patternType != null ? TypeTranslation.ParseType(patternType, SemanticModel) : null;
 
             if (syntaxNode is IsPatternExpressionSyntax isPattern)
             {
-                patternPathOfIdentifiers.Insert(0, $"{isPattern.Expression.ToString()} as {originalType})");
+                patternPathOfIdentifiers.Insert(0, originalType != null ? $"{isPattern.Expression.ToString()} as {originalType})" : isPattern.Expression.ToString());
 
                 var (newConditionals, replacements) = deferredConditionalsAndReplacements.Aggregate((new List<ExpressionSyntax>(), new List<(string, ExpressionSyntax)?>()), (acc, curr) =>
                 {
-                    acc.Item1.Add(curr.newCondition);
+                    if (curr.newCondition != null) acc.Item1.Add(curr.newCondition);
                     if (curr.declarationReplacement != null) acc.Item2.Add(curr.declarationReplacement);
                     return acc;
                 });
@@ -143,7 +148,7 @@ public partial class Rewriter
             }
             else if (syntaxNode is SubpatternSyntax subpattern)
             {
-                patternPathOfIdentifiers.Insert(0, $"{subpattern.NameColon.Name.Identifier.Text} as {originalType})");
+                patternPathOfIdentifiers.Insert(0, originalType != null ? $"{subpattern.NameColon.Name.Identifier.Text} as {originalType})" : null);
                 patternType = subpattern.Pattern is TypePatternSyntax typePatternSyntax ? typePatternSyntax.Type : (subpattern.Pattern as DeclarationPatternSyntax).Type;
                 RegisterAncestorRewrite(HandleRecursivePatternParents, SyntaxKind.IsPatternExpression, SyntaxKind.Subpattern);
             }

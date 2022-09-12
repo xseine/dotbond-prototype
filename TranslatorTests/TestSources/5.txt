@@ -1,0 +1,56 @@
+﻿using System;
+
+public class App
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine("Hello World.");
+
+        var anonObject = new { FirstName = "Greatest", LastName = "Ever" };
+
+        var original = new Person()
+        {
+            Name = "Jack Donovan",
+            Age = 23
+        };
+
+        var age = new[] { 23, 11, 23 }.ToList();
+        var clones = age.Select(e =>
+            new Person
+            {
+                Name = "Jack Donovan",
+                Age = e
+            }).ToList();
+        var totalAge = clones.Sum(e => e.Age);
+
+        var manualPersons = new List<Person>()
+        {
+            new Person() { Name = "Person 1", Age = 1 },
+            new Person() { Name = "Person 2", Age = 2 }
+        }.Where(e => e.Age == 2);
+
+        var someObject = new Dictionary<string, string>()
+        {
+            { "key1", "value1" },
+            { "key2", "value2" }
+        };
+        
+        Console.WriteLine(totalAge);
+        Console.WriteLine(manualPersons);
+        Console.WriteLine(someObject);
+        
+    }
+    
+    public class Person
+    {
+        public string Name { get; set; }
+        public int Age { get; set; }
+    }
+
+    public class Jack
+    {
+        public Person Person { get; set; }
+    }
+}
+
+App.Main(null);

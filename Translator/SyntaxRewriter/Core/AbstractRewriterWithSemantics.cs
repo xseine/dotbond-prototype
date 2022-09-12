@@ -56,6 +56,11 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
         return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, CreateToken(SyntaxKind.StringLiteralToken, text));
     }
 
+    public static ArgumentListSyntax CreateArgumentList(params ExpressionSyntax[] arguments)
+    {
+        return SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(arguments.Select(SyntaxFactory.Argument)));
+    }
+
     protected static readonly Random Random = new();
 
     public static string GenerateRandomVariableName()

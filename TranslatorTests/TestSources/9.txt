@@ -1,0 +1,30 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+new Dictionaries().Method1();
+
+public class Dictionaries
+{
+    public void Method1()
+    {
+        var pairs = new List<KeyValuePair<string, int>>();
+        var dic = new Dictionary<string, int>();
+        dic.Add("Somebody", 44);
+        dic.Add("Somebody else", 54);
+        dic.Remove("Somebody");
+        if(dic.ContainsKey("Nothing"))
+        {
+            dic["Nothing"] = 64;
+        }
+        foreach(var item in dic)
+        {
+            var k = item.Key;
+            var v = item.Value;
+            pairs.Add(item);
+        }
+        
+        Console.WriteLine(pairs.Count);
+    }
+}

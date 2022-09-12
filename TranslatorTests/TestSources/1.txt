@@ -1,0 +1,26 @@
+﻿using System.Linq;
+
+var array = new int[] { 1, 2, 3, 4, 5 };
+var slice1 = array[2..^3];    // array[new Range(2, new Index(3, fromEnd: true))]
+var slice2 = array[..^3];     // array[Range.EndAt(new Index(3, fromEnd: true))]
+var slice3 = array[2..];      // array[Range.StartAt(2)]
+var slice4 = array[..];       // array[Range.All]
+
+var birdCount = new BirdCount(new[] {2, 2, 0, 3, 7, 1, 5});
+Console.WriteLine(birdCount.CountForFirstDays(3));
+Console.WriteLine(birdCount.BusyDays());
+
+class BirdCount
+{
+    private int[] birdsPerDay;
+    public BirdCount(int[] birdsPerDay) => this.birdsPerDay = birdsPerDay;
+    public static int[] LastWeek() => new[] {0, 2, 5, 3, 7, 8, 4};
+    public int Today() => birdsPerDay.Last();
+    public void IncrementTodaysCount()
+    {
+        birdsPerDay[^1]++;
+    }
+    public bool HasDayWithoutBirds() => birdsPerDay.Contains(0);
+    public int CountForFirstDays(int numberOfDays) => birdsPerDay.Take(numberOfDays).Sum();
+    public int BusyDays() => birdsPerDay.Count(day => day >= 5);
+}

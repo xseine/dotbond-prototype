@@ -35,13 +35,19 @@ namespace Translator
             using System.Text;
             using System.Text.RegularExpressions;
             using System.Collections.Generic;
-            ";
+";
             
             var syntaxTree = CSharpSyntaxTree.ParseText(usings + source);
 
             _demoCompilation = _demoCompilation?.RemoveSyntaxTrees(_previousSyntaxTree) ??
                                RoslynUtilities.CreateDemoCompilation();
 
+            if (!syntaxTree.GetRoot().ChildNodes().Any(e => e is not UsingDirectiveSyntax and not ClassDeclarationSyntax))
+            {
+                var requiredStatement = SyntaxFactory.GlobalStatement(SyntaxFactory.ParseStatement("Console.WriteLine(\"required\");"));
+                syntaxTree = syntaxTree.GetRoot().InsertNodesBefore(syntaxTree.GetRoot().ChildNodes().First(e => e is ClassDeclarationSyntax), new[] {requiredStatement}).SyntaxTree;
+            }
+            
             _demoCompilation = _demoCompilation.AddSyntaxTrees(syntaxTree);
 
             var a = _demoCompilation.GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
@@ -51,7 +57,7 @@ namespace Translator
             var semanticModel = _demoCompilation.GetSemanticModel(syntaxTree);
             var walker = new Rewriter(semanticModel);
 
-            return RewriteNode(walker, syntaxTree.GetRoot()).Translation;
+            return RewriteNode(walker, syntaxTree.GetRoot()).Translation.Replace("console.log(\"required\");", "");
         }
 
         /// <summary>

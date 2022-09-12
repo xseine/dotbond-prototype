@@ -60,4 +60,8 @@
       <EmbeddedResource Remove="nupkg\**" />
     </ItemGroup>
 
+    <ItemGroup>
+      <TypeScriptCompile Include="test.ts" />
+    </ItemGroup>
+
 </Project>

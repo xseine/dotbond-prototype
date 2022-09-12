@@ -50,6 +50,7 @@ namespace Translator.SyntaxRewriter.Core
         public override SyntaxNode VisitIfStatement(IfStatementSyntax node) => VisitAndRewrite(node);
         public override SyntaxNode VisitIsPatternExpression(IsPatternExpressionSyntax node) => VisitAndRewrite(node);
         public override SyntaxNode VisitSubpattern(SubpatternSyntax node) => VisitAndRewrite(node);
+        public override SyntaxNode VisitElementAccessExpression(ElementAccessExpressionSyntax node) => VisitAndRewrite(node);
 
 
         protected SyntaxNode VisitAndRewrite(SyntaxNode node)
@@ -73,6 +74,7 @@ namespace Translator.SyntaxRewriter.Core
                 IfStatementSyntax syntax => base.VisitIfStatement(syntax),
                 IsPatternExpressionSyntax syntax => base.VisitIsPatternExpression(syntax),
                 SubpatternSyntax syntax => base.VisitSubpattern(syntax),
+                ElementAccessExpressionSyntax syntax => base.VisitElementAccessExpression(syntax),
                 _ => throw new ArgumentOutOfRangeException(nameof(node), node, null)
             };
 

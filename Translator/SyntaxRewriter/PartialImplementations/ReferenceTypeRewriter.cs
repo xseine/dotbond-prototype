@@ -35,8 +35,10 @@ public partial class Rewriter
         var overrideVisit = (ClassDeclarationSyntax)base.VisitClassDeclaration(node);
         var accessToken = overrideVisit.Modifiers.FirstOrDefault();
         var newAccessToken = accessToken.IsKind(SyntaxKind.None) ? accessToken : CreateToken(SyntaxKind.PublicKeyword, accessToken.LeadingTrivia + "export ");
-
-        overrideVisit = overrideVisit.WithModifiers(SyntaxFactory.TokenList(newAccessToken))
+        var abstractToken = overrideVisit.Modifiers.FirstOrDefault(e => e.IsKind(SyntaxKind.AbstractKeyword));
+        var tokens = !abstractToken.IsKind(SyntaxKind.None) ? new[] { newAccessToken, abstractToken } : new[] { newAccessToken };
+        
+         overrideVisit = overrideVisit.WithModifiers(SyntaxFactory.TokenList(tokens))
             .WithIdentifier(overrideVisit.Identifier.WithTrailingTrivia(SyntaxFactory.Space))
             .WithOpenBraceToken(overrideVisit.OpenBraceToken.WithLeadingTrivia());
 
@@ -86,6 +88,19 @@ export namespace {nodeName} {{
         return (result, classOrRecordDeclaration);
     }
 
+
+    public override SyntaxNode VisitInterfaceDeclaration(InterfaceDeclarationSyntax node)
+    {
+        var modifiers = node.Modifiers.Select(e => e.IsKind(SyntaxKind.PublicKeyword) ? CreateToken(SyntaxKind.PublicKeyword, "export ") : e);
+        return ((InterfaceDeclarationSyntax)base.VisitInterfaceDeclaration(node)).WithModifiers(SyntaxFactory.TokenList(modifiers));
+    }
+
+    public override SyntaxNode VisitStructDeclaration(StructDeclarationSyntax node)
+    {
+        var overrideVisit = ((StructDeclarationSyntax)base.VisitStructDeclaration(node)).WithKeyword(CreateToken(SyntaxKind.StructKeyword, "class "));
+        var accessModifier = node.Modifiers.First(e => e.IsKind(SyntaxKind.PublicKeyword));
+        return !accessModifier.IsKind(SyntaxKind.None) ? overrideVisit.WithModifiers(SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, "export "))) : overrideVisit.WithModifiers(default);
+    }
 
     /// <summary>
     /// Converts C# record into Typescript class
@@ -155,12 +170,28 @@ export namespace {nodeName} {{
             node = node.WithTypes(newTypes);
         }
 
-        return node.WithColonToken(CreateToken(SyntaxKind.ColonToken, "extends "));
+        var baseType = node.Types.FirstOrDefault(e => SemanticModel.GetTypeInfo(e.Type).Type!.TypeKind == TypeKind.Class);
+        var implementedInterfaces = node.Types.Where(e => SemanticModel.GetTypeInfo(e.Type).Type!.TypeKind == TypeKind.Interface).Select(e => e.Type.ToString()).ToList();
+        
+        var newBaseList = baseType != null
+            ? node.WithColonToken(CreateToken(SyntaxKind.ColonToken, "extends "))
+                .WithTypes(SyntaxFactory.SeparatedList(new []{ baseType }))
+            : node.WithTypes(default).WithColonToken(SyntaxFactory.MissingToken(SyntaxKind.ColonToken));
+
+        if (implementedInterfaces.Any())
+            newBaseList = newBaseList.WithTrailingTrivia(node.GetTrailingTrivia().Prepend($" implements {string.Join(", ", implementedInterfaces)}"));
+        
+        return newBaseList;
     }
 
     public override SyntaxNode VisitConstructorDeclaration(ConstructorDeclarationSyntax node)
     {
         var overrideVisit = (ConstructorDeclarationSyntax)base.VisitConstructorDeclaration(node);
+        if (overrideVisit.ExpressionBody != null)
+        {
+            overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(overrideVisit.ExpressionBody.Expression)));
+            overrideVisit = overrideVisit.WithExpressionBody(null);
+        }
         return overrideVisit.WithIdentifier(SyntaxFactory.Identifier("constructor"));
     }
 

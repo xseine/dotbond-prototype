@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Translator.SyntaxRewriter.Core;
@@ -67,6 +68,10 @@ public partial class Rewriter : AbstractRewriterWithSemantics
             ConditionalAccessExpressionSyntax
             {
                 WhenNotNull: InvocationExpressionSyntax { Expression: MemberBindingExpressionSyntax memberBinding }
+            } => memberBinding.Name.ToString(),
+            ConditionalAccessExpressionSyntax
+            {
+                WhenNotNull: MemberBindingExpressionSyntax memberBinding
             } => memberBinding.Name.ToString(),
             _ => throw new ArgumentOutOfRangeException(nameof(node), node, null)
         };
@@ -137,7 +142,18 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                     case nameof(Enumerable.LastOrDefault):
                     case nameof(List<object>.FindLast):
                     {
-                        newMethodName = "slice().reverse().find";
+                        var hasArguments = ((InvocationExpressionSyntax)node.Parent).ArgumentList.Arguments.Any();
+                        
+                        if (hasArguments)
+                            newMethodName = "slice().reverse().find";
+                        else
+                        {
+                            newMethodName = "at";
+                            RegisterAncestorRewrite(syntaxNode => ((InvocationExpressionSyntax)syntaxNode)?.WithArgumentList(
+                                CreateArgumentList(SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal("-1", -1)))),
+                                SyntaxKind.InvocationExpression);
+                        }
+                        
                         break;
                     }
 
@@ -181,7 +197,9 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         {
                             var invocationExpression = (InvocationExpressionSyntax)syntaxNode;
                             var memberAccessExpression = (MemberAccessExpressionSyntax)invocationExpression.Expression;
-                            memberAccessExpression = memberAccessExpression.WithExpression(
+                            
+                            if (invocationExpression.ArgumentList.Arguments.Any())
+                                memberAccessExpression = memberAccessExpression.WithExpression(
                                 SyntaxFactory.InvocationExpression(
                                     SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, memberAccessExpression.Expression, SyntaxFactory.IdentifierName("map")),
                                     invocationExpression.ArgumentList));
@@ -200,16 +218,16 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         var argOfSkipBeforeTake = node switch
                         {
                             ConditionalAccessExpressionSyntax { Expression: InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax x1 } x2 }
-                                when x1.Name.ToString() == nameof(Enumerable.Skip) => int.Parse(x2.ArgumentList.Arguments.First().Expression.ToString()),
+                                when x1.Name.ToString() == nameof(Enumerable.Skip) => x2.ArgumentList.Arguments.First().Expression.ToString(),
                             MemberAccessExpressionSyntax { Expression: InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax x1 } x2 }
-                                when x1.Name.ToString() == nameof(Enumerable.Skip) => int.Parse(x2.ArgumentList.Arguments.First().Expression.ToString()),
-                            _ => null as int?
+                                when x1.Name.ToString() == nameof(Enumerable.Skip) => x2.ArgumentList.Arguments.First().Expression.ToString(),
+                            _ => null
                         };
 
                         var takeArg = node switch
                         {
-                            ConditionalAccessExpressionSyntax { Parent: InvocationExpressionSyntax x1 } => int.Parse(x1.ArgumentList.Arguments.First().Expression.ToString()),
-                            MemberAccessExpressionSyntax { Parent: InvocationExpressionSyntax x1 } => int.Parse(x1.ArgumentList.Arguments.First().Expression.ToString())
+                            ConditionalAccessExpressionSyntax { Parent: InvocationExpressionSyntax x1 } => x1.ArgumentList.Arguments.First().Expression.ToString(),
+                            MemberAccessExpressionSyntax { Parent: InvocationExpressionSyntax x1 } => x1.ArgumentList.Arguments.First().Expression.ToString()
                         };
                         
                         newMethodName = argOfSkipBeforeTake != null ? $"slice({argOfSkipBeforeTake}, {argOfSkipBeforeTake + takeArg})" : $"slice(0, {takeArg})";
@@ -300,14 +318,70 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                             ((InvocationExpressionSyntax)syntaxNode).WithArgumentList(_emptyArgumentsList), SyntaxKind.InvocationExpression);
                         break;
                     }
-                    
-                }
 
+                    case nameof(IDictionary.Add):
+                    {
+                        if (symbol.ContainingType.Name == "Dictionary")
+                            RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var invExpression = (InvocationExpressionSyntax)syntaxNode;
+                                return SyntaxFactory.AssignmentExpression(
+                                    SyntaxKind.SimpleAssignmentExpression,
+                                    SyntaxFactory.ElementAccessExpression(
+                                        (invExpression.Expression as MemberAccessExpressionSyntax).Expression,
+                                        SyntaxFactory.BracketedArgumentList(SyntaxFactory.SeparatedList(new[]
+                                            { SyntaxFactory.Argument(invExpression.ArgumentList.Arguments[0].Expression) }))),
+                                    invExpression.ArgumentList.Arguments[1].Expression);
+
+                            }, SyntaxKind.InvocationExpression);
+                        else if (symbol.ContainingType.Name == "List")
+                            newMethodName = "push";
+                        
+                        break;
+                    }
+
+                    case nameof(IDictionary.Remove):
+                    {
+
+                        if (symbol.ContainingType.Name == "Dictionary")
+                            RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var invExpression = (InvocationExpressionSyntax)syntaxNode;
+                                var dictionaryExp = (invExpression.Expression as MemberAccessExpressionSyntax).Expression;
+                                
+                                return SyntaxFactory.ElementAccessExpression(
+                                        dictionaryExp,
+                                    SyntaxFactory.BracketedArgumentList(SyntaxFactory.SeparatedList<ArgumentSyntax>(new[]
+                                        { SyntaxFactory.Argument(invExpression.ArgumentList.Arguments[0].Expression) })))
+                                    .WithLeadingTrivia(invExpression.GetLeadingTrivia().Append("delete "));
+
+                            }, SyntaxKind.InvocationExpression);
+                        
+                        break;
+                    }
+
+                    case nameof(IDictionary<object, object>.ContainsKey):
+                    {
+
+                        if (symbol.ContainingType.Name == "Dictionary")
+                            RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var invExpression = (InvocationExpressionSyntax)syntaxNode;
+                                var dictionaryExp = (invExpression.Expression as MemberAccessExpressionSyntax).Expression;
+
+                                return invExpression.ArgumentList.Arguments[0].Expression.WithTrailingTrivia(invExpression.GetTrailingTrivia().Prepend($" in {dictionaryExp.ToString()}"));
+
+                            }, SyntaxKind.InvocationExpression);
+
+                        break;
+                    }
+                }
 
                 goto default;
             }
 
             case "System":
+            case "System.Text":
             {
                 switch (methodName)
                 {
@@ -323,13 +397,44 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         break;
                     }
 
+                    case nameof(Console.Read):
+                    case nameof(Console.ReadLine):
+                    {
+                        if (((MemberAccessExpressionSyntax)node).Expression.ToString() == "Console")
+                        {
+                            newMethodName = "prompt";
+                            overrideVisit = ((MemberAccessExpressionSyntax)overrideVisit).WithExpression(SyntaxFactory.IdentifierName("window")).WithLeadingTrivia(node.GetLeadingTrivia());
+                        }
+
+                        break;
+                    }
+
                     case "ToString":
                     {
+                        if (symbol.ContainingType.Name == "StringBuilder")
+                        {
+                            RegisterAncestorRewrite(syntaxNode => ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)syntaxNode).Expression).Expression, SyntaxKind.InvocationExpression);
+                            break;
+                        }
+                        
                         newMethodName = symbol.ContainingType.Name switch
                         {
                             nameof(DateTime) => "format",
                             _ => "toString"
                         };
+                        break;
+                    }
+
+                    case "Append":
+                    {
+
+                        if (symbol.ContainingType.Name == "StringBuilder")
+                            RegisterAncestorRewrite(syntaxNode =>
+                                    SyntaxFactory.AssignmentExpression(SyntaxKind.AddAssignmentExpression,
+                                        ((MemberAccessExpressionSyntax)overrideVisit).Expression,
+                                        ((InvocationExpressionSyntax)syntaxNode).ArgumentList.Arguments.First().Expression),
+                                SyntaxKind.InvocationExpression);
+
                         break;
                     }
 
@@ -410,6 +515,17 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                                 SyntaxKind.InvocationExpression);
                         }
 
+                        break;
+                    }
+
+                    case "GetType":
+                    {
+                        RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var a = (overrideVisit as MemberAccessExpressionSyntax).WithName(SyntaxFactory.IdentifierName("constructor.name"));
+                                return a;
+                            },
+                            SyntaxKind.InvocationExpression);
                         break;
                     }
 
@@ -523,8 +639,15 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         if (isLocalVariableToImportTypeOf) break;
 
                         // TODO: provjeriti da li je metod included
-                        if (((symbol.ContainingSymbol as ITypeSymbol)!).IsValueType == false && symbol.ContainingSymbol.Name != "String")
+                        if ((symbol.ContainingSymbol as ITypeSymbol)!.IsValueType == false && symbol.ContainingSymbol.Name != "String")
                             ImportedSymbols.Add(symbol.ContainingSymbol as ITypeSymbol);
+
+                        if ((symbol.ContainingSymbol as ITypeSymbol).IsStatic)
+                            overrideVisit = ((MemberAccessExpressionSyntax)overrideVisit).WithExpression(GetFullTypeSyntax(((MemberAccessExpressionSyntax)node).Expression as TypeSyntax));
+                        
+                        if ((symbol.ContainingSymbol as ITypeSymbol).TypeKind == TypeKind.Enum)
+                            overrideVisit = node;
+                        
                         break;
                 }
 

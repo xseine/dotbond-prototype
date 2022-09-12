@@ -1,0 +1,49 @@
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
+var auth = new Authenticator(default);
+Console.WriteLine(auth.GetDevelopers());
+
+public class Authenticator
+{
+    public static class EyeColors
+    {
+        public const string Blue = "blue";
+        public const string Green = "green";
+        public const string Brown = "brown";
+        public const string Hazel = "hazel";
+        public const string Brey = "grey";
+    }
+    public Authenticator(Identity admin)
+    {
+        this._admin= admin;
+    }
+    private Identity _admin;
+    public Identity Admin
+    {
+        get { return _admin; }
+    }
+    private IReadOnlyDictionary<string, Identity> developers
+        = new ReadOnlyDictionary<string, Identity>(new Dictionary<string, Identity>
+        {
+            ["Bertrand"] = new Identity
+            {
+                Email = "bert@ex.ism",
+                EyeColor = EyeColors.Blue
+            },
+            ["Anders"] = new Identity
+            {
+                Email = "anders@ex.ism",
+                EyeColor = EyeColors.Brown
+            }
+        });
+    public IReadOnlyDictionary<string, Identity> GetDevelopers()
+    {
+        return developers;
+    }
+}
+public readonly struct Identity
+{
+    public string Email { get; init; }
+    public string EyeColor { get; init; }
+}

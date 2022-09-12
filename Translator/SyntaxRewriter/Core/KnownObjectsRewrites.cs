@@ -29,10 +29,10 @@ public static class KnownObjectsRewrites
 
         if (typeName == nameof(DateTime))
         {
-            var arguments = node.ArgumentList!.Arguments.Select(e => e.ToString().PadLeft(2, '0')).ToList();
+            var arguments = node.ArgumentList!.Arguments.Select(e => "${" + rewriter.VisitArgument(e).ToString() + "}").ToList();
             for (var i = arguments.Count; i < 7; i++) arguments.Add("00");
             var a =
-                $"new Date('{arguments[0]:0000}-{arguments[1]:00}-{arguments[2]:00}T{arguments[3]:00}:{arguments[4]:00}:{arguments[5]:00}.{arguments[6]:00}')";
+                $"new Date(`{arguments[0]:0000}-{arguments[1]:00}-{arguments[2]:00}T{arguments[3]:00}:{arguments[4]:00}:{arguments[5]:00}.{arguments[6]:00}`)";
             return SyntaxFactory.ParseExpression(a);
         }
 
@@ -48,13 +48,22 @@ public static class KnownObjectsRewrites
             return SyntaxFactory.ParseExpression(newExpression);
         }
 
-        if (typeName == "Dictionary")
+        if (typeName is "Dictionary")
         {
             var tsType = TypeTranslation.ParseType(node.Type, rewriter.SemanticModel);
             var newExpression = $"{{}} as {tsType}";
 
             return SyntaxFactory.ParseExpression(newExpression);
         }
+
+        if (typeName == "ReadOnlyDictionary")
+        {
+            var dictionaryCreation = (ObjectCreationExpressionSyntax) node.ArgumentList.Arguments.First().Expression;
+            return (ExpressionSyntax)rewriter.VisitObjectCreationExpression(dictionaryCreation);
+        }
+
+        if (typeName == "StringBuilder")
+            return SyntaxFactory.ParseExpression("''");
 
         return null;
     }

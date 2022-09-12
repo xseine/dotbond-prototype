@@ -1,0 +1,56 @@
+using System;
+
+var rcCar = new RemoteControlCar(30, 2);
+rcCar.Drive();
+Console.WriteLine(rcCar.DistanceDriven());
+
+class RemoteControlCar
+{
+    private int speed;
+    private int batteryDrain;
+    private int speedpercorred;
+    private int baterrycharge;
+    public RemoteControlCar(int spd ,int batrDrain)
+    {
+        speed = spd;
+        batteryDrain = batrDrain;
+        speedpercorred = 0;
+        baterrycharge = 100; 
+    }
+    public bool BatteryDrained()
+    {
+        return baterrycharge < batteryDrain ;            
+    }
+    public int DistanceDriven()
+    {
+        return speedpercorred; 
+    }
+    public void Drive()
+    {
+        if (!BatteryDrained() && baterrycharge >= batteryDrain  )
+        {
+            speedpercorred = speedpercorred + speed;            
+        }
+        baterrycharge = baterrycharge - batteryDrain;
+    }
+    public static RemoteControlCar Nitro()
+    {
+       return new RemoteControlCar(50, 4);
+    }
+}
+class RaceTrack
+{
+    private int distance;
+    public RaceTrack(int dst)
+    {
+        distance = dst;        
+    }
+    public bool TryFinishTrack(RemoteControlCar car)
+    {             
+        while (!car.BatteryDrained())
+        {
+            car.Drive();
+        }
+        return car.DistanceDriven() >= distance;
+    }
+}

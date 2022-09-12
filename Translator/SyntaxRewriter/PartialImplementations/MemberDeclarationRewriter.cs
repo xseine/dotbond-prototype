@@ -35,9 +35,9 @@ public partial class Rewriter
 
                 var methodName = isGet ? "get" : "set";
                 // Getter gets the return type assigned, setter gets the value as a parameter
-                var parameters = isGet ?
-                    SyntaxFactory.ParameterList().WithCloseParenToken(SyntaxFactory.Token(default, SyntaxKind.CloseParenToken, "): " + parsedType, "): " + parsedType, default)) :
-                    SyntaxFactory.ParameterList(new SeparatedSyntaxList<ParameterSyntax>().Add(SyntaxFactory.Parameter(SyntaxFactory.ParseToken("value: " + parsedType))));
+                var parameters = isGet
+                    ? SyntaxFactory.ParameterList().WithCloseParenToken(SyntaxFactory.Token(default, SyntaxKind.CloseParenToken, "): " + parsedType, "): " + parsedType, default))
+                    : SyntaxFactory.ParameterList(new SeparatedSyntaxList<ParameterSyntax>().Add(SyntaxFactory.Parameter(SyntaxFactory.ParseToken("value: " + parsedType))));
 
                 var expressionBody = accessor.Body ?? SyntaxFactory.Block(SyntaxFactory.ReturnStatement(accessor.ExpressionBody!.Expression.WithLeadingTrivia(SyntaxFactory.Space)));
 
@@ -47,7 +47,7 @@ public partial class Rewriter
                             null!, parameters, default,
                             expressionBody.WithLeadingTrivia(SyntaxFactory.Space),
                             SyntaxFactory.MissingToken(SyntaxKind.SemicolonToken))
-                            .ChangeIdentifierToCamelCase()
+                        .ChangeIdentifierToCamelCase()
                         .WithLeadingTrivia(leadingTrivia)
                         .WithTrailingTrivia(trailingTrivia));
             }
@@ -92,16 +92,25 @@ public partial class Rewriter
         var fieldWithNewName = field.WithIdentifier(
             SyntaxFactory.Identifier(field.Identifier.Text + ": " + TypeTranslation.ParseType(overrideVisit.Declaration.Type, SemanticModel)));
 
+        // No "const" on fields in TS, but use static if parent is static
+        var isClassStatic = ((ClassDeclarationSyntax)node.Parent).Modifiers.Any(e => e.IsKind(SyntaxKind.StaticKeyword));
+        var modifiers = isClassStatic
+            ? SyntaxFactory.TokenList(overrideVisit.Modifiers.Select(e => e.IsKind(SyntaxKind.ConstKeyword) ? CreateToken(SyntaxKind.StaticKeyword, "static ") : e))
+            : SyntaxFactory.TokenList(overrideVisit.Modifiers.Where(e => !e.IsKind(SyntaxKind.ConstKeyword)));
+
         overrideVisit = overrideVisit
             .WithDeclaration(overrideVisit.Declaration.WithType(SyntaxFactory.ParseTypeName("")).WithVariables(SyntaxFactory.SeparatedList(new[] { fieldWithNewName })))
             .WithLeadingTrivia(leadingTrivia)
-            .WithoutTrailingTrivia().WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)).WithTrailingTrivia(trailingTrivia);
+            .WithoutTrailingTrivia().WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)).WithTrailingTrivia(trailingTrivia)
+            .WithModifiers(modifiers);
+
+        overrideVisit = overrideVisit.ChangeIdentifierToCamelCase();
 
         return overrideVisit;
     }
 
     // Changes position of the return type (and translates it).
-    // Adds expression block where it's missing so the other parts of the rewriter, e.g. "Object initializer" syntax, would work.
+    // Replaces expression body with the block statement
     public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
         var overrideVisit = (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;

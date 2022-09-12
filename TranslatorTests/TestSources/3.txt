@@ -1,0 +1,31 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+public class MyFinancialModel
+{
+    public string NetProfit { get; set; }
+    public int EmployeeCount { get; set; }
+    public int Cash { get; set; }
+    public int ShortTermLiabilities { get; set; }
+
+    public int EBIT { get; set; }
+    public int InterestExpense { get; set; }
+
+    public double InterestCoverageRation => (double) EBIT / InterestExpense;
+
+    public double CashRatio => ShortTermLiabilities != 0 ? (double) Cash / ShortTermLiabilities : 0;
+    public bool InDefaultRisk => CashRatio  < 1 && InterestCoverageRation  < 1;
+
+    public string ValidateInformation()
+    {
+        if (EmployeeCount < 1) return "Employee count must be at least 1.";
+        if (Cash < 0) return "Cash can't have negative value.";
+        if (InterestExpense == 0) return "Interest expense can't be 0.";
+        // etc...
+
+        return null;
+    }
+
+}
