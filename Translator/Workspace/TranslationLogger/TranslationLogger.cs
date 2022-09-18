@@ -22,18 +22,9 @@ public static class TranslationLogger
     }
 
     private const char TypesSeparator = '|';
-    
-    private static readonly string _logFilePath;
 
-    static TranslationLogger()
-    {
-        _logFilePath = Path.Combine(Path.GetTempPath(), "BondLogs", "TranslationLog.txt");
-        if (!File.Exists(_logFilePath))
-        {
-            Directory.CreateDirectory(Directory.GetParent(_logFilePath).FullName);
-            File.WriteAllText(_logFilePath, DescriptionText);
-        }
-    }
+    private static string _logFilePath;
+    private static string LogFilePath => _logFilePath ??= Path.Combine(LoggingUtilities.GetLogFolder(), "TranslationLog.txt");
 
     /// <summary>
     /// Adds, or updates, an entry to TranslationLog.txt
@@ -50,10 +41,10 @@ public static class TranslationLogger
         if (existingEntryIdx != -1)
         {
             allLines[existingEntryIdx] = newEntry.ToString();
-            File.WriteAllLines(_logFilePath, allLines);
+            File.WriteAllLines(LogFilePath, allLines);
         }
         else
-            File.AppendAllLines(_logFilePath, new []{ newEntry.ToString() });
+            File.AppendAllLines(LogFilePath, new []{ newEntry.ToString() });
         
     }
 
@@ -79,21 +70,11 @@ public static class TranslationLogger
 
         allLines = allLines.Where((_, idx) => idx != entryIdx).ToList();
         
-        File.WriteAllLines(_logFilePath, allLines);
+        File.WriteAllLines(LogFilePath, allLines);
     }
     
-    private static List<string> GetRecords() => File.ReadAllLines(_logFilePath).ToList();
+    private static List<string> GetRecords() => File.Exists(LogFilePath) ? File.ReadAllLines(LogFilePath).ToList() : new List<string>();
     
     private static int FindLindeIdx(List<string> lines, string translationId) => 
         lines.FindIndex(line => !line.StartsWith("//") && !string.IsNullOrWhiteSpace(line) && line.Split(", ")[0] == translationId);
-
-    private static readonly string DescriptionText = @"//------------------------------------------------------------------------------
-// <description>
-//     Contains a list of translation finished by DotBond.
-//     Each entry contains data about the source that was translated, its destination, and the time of the translation.
-//     This enables the translation runtime to know what translations are stale,
-//     when source file is deleted, from where to delete the translated content, etc. 
-// </description>
-//------------------------------------------------------------------------------
-";
 }

@@ -227,7 +227,6 @@ export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}
         FrontendDirectoryController.WriteToAngularDirectory(_returnTypeDatesPath, fileContentSb.ToString());
     }
 
-
     private static (string, bool) GetRouteFromTemplate(IMethodSymbol actionSymbol, string httpMethod)
     {
         var isNameUsedInRoute = ((INamedTypeSymbol)actionSymbol.ContainingSymbol).GetAttributes()

@@ -125,6 +125,39 @@ public static class FrontendDirectoryController
     }
 
     public static string GetAngularRootPath() => Path.GetFullPath(Path.Combine(_backendFilesRoot, _frontendFilesRoot));
+
+    public static async Task<string> GetServerAddressFromProxy()
+    {
+        var directory = new DirectoryInfo(Path.Combine(GetAngularRootPath(), "a"));
+        string proxyFileRelativePath = null;
+        
+        while ((directory = directory.Parent) != null)
+        {
+            var files = directory.GetFiles();
+            var angularJson = files.FirstOrDefault(e => e.Name == "angular.json");
+
+            if (angularJson == null) continue;
+
+            var lines = await File.ReadAllLinesAsync(angularJson.FullName);
+
+            var proxyConfigLine = lines.FirstOrDefault(e => e.TrimStart().StartsWith("\"proxyConfig\""));
+
+            if (proxyConfigLine == null) break;
+
+            var proxyConfigValue = Regex.Match(proxyConfigLine, @"(?<=""proxyConfig""\s*:?\s*"").+(?="")").Value;
+            proxyFileRelativePath = proxyConfigValue;
+            break;
+        }
+        
+        if (proxyFileRelativePath == null) return null;
+
+        var proxyFilePath = Path.Combine(directory.FullName, proxyFileRelativePath);
+        var proxyFileContent = await File.ReadAllTextAsync(proxyFilePath);
+
+        return proxyFilePath.EndsWith("json") 
+            ? Regex.Match(proxyFileContent, @"/\w+").Value 
+            : Regex.Match(proxyFileContent, @"(?<=context\s*:\s*\[\s*['""])/\w+").Value;
+    }
     
     /*========================== Private API ==========================*/
 

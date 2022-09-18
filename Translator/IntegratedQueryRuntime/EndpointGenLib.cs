@@ -217,6 +217,7 @@ public static class EndpointGenLib
             var injectedServices = controllerInjections.First(e => e.ControllerName == controllerName).Injected.Select(e => e.Name);
             var controllerNameNew = controllerName[..^"Controller".Length];
             var lowercaseVarName = controllerNameNew[0].ToString().ToLower() + controllerNameNew[1..];
+            lowercaseVarName = ReplaceIfKeyword(lowercaseVarName);
 
             var leadingTrivia = new Regex(@"^\s*").Match(source).Value;
             returnedValsAndCtrlInstancesVars.Add($"{leadingTrivia}var {lowercaseVarName} = new {controllerNameNew}Controller({string.Join(", ", injectedServices)});\n");
@@ -229,7 +230,7 @@ public static class EndpointGenLib
             var semanticModel = compilation.GetSemanticModel(tree);
             return tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
                 .Where(e => controllerNames.Contains(e.Identifier.Text))
-                .SelectMany(classSyntax => RoslynUtilities.GetConstructorParametersNamespaces(classSyntax, semanticModel).Append(semanticModel.GetDeclaredSymbol(classSyntax)!.ContainingNamespace.ToString()));
+                .SelectMany(classSyntax => (RoslynUtilities.GetConstructorParametersNamespaces(classSyntax, semanticModel) ?? new List<string>()).Append(semanticModel.GetDeclaredSymbol(classSyntax)!.ContainingNamespace.ToString()));
         });
         
 
@@ -276,7 +277,7 @@ public static class EndpointGenLib
         var lockedValues = new List<string>();
 
         var idx = 0;
-        foreach (var match in Regex.Matches(source, MatchBalancedTokens("[", "]")).ToList())
+        foreach (var match in Regex.Matches(source, MatchBrackets(BracketType.SquareBrackets)).Where(e => e.Length > 2).ToList())
         {
             lockedValues.Add(match.Value);
             source = source.Replace(match.Value, lockValue + idx++);

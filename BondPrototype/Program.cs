@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+using Translator.IntegratedQueryRuntime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,7 +61,7 @@ app.UseSwaggerUI();
 // This uses app.UseStaticFiles();
 app.UseSpaStaticFiles();
 
-app.UseCustomEngine();
+app.UseIntegratedQueriesLayer();
 
 app.UseRouting();
 app.UseCors();

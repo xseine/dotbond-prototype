@@ -17,7 +17,8 @@ if (csprojPath == null || !csprojPath.EndsWith(".csproj")) throw new ArgumentExc
 var backendRoot = Directory.GetParent(csprojPath)!.FullName;
 var bondConfig = BondConfigSchema.LoadFromFile(Path.Combine(backendRoot, "bond.json"));
 FrontendDirectoryController.Setup(backendRoot, Path.Combine(backendRoot, bondConfig.OutputFolder));
-
+LoggingUtilities.CsprojPath = csprojPath;
+    
 var fileObservable = new FileObservable(csprojPath);
 
 // Frontend generators that provide callbacks to analyze file file observable outputs
@@ -131,7 +132,7 @@ generators.Select(generator =>
 usedTypesSubject.OnNext((null, null));
 
 if (!File.Exists(FrontendDirectoryController.DetermineAngularPath(ApiGenerator.QueryServicePath)))
-    FrontendDirectoryController.WriteToAngularDirectory(ApiGenerator.QueryServicePath, ApiBoilerplate.GetQueryServiceContent());
+    FrontendDirectoryController.WriteToAngularDirectory(ApiGenerator.QueryServicePath, ApiBoilerplate.GetQueryServiceContent(await FrontendDirectoryController.GetServerAddressFromProxy()));
 RequiredFiles.CreateRequiredFiles(FrontendDirectoryController.GetAngularRootPath());
 
 EndpointGenInitializer.InitializeTranslator(fileObservable, csprojPath);
@@ -140,4 +141,5 @@ EndpointSignatureObservable.InitializeObservable(fileObservable, csprojPath);
 
 // Exit on Enter
 Console.WriteLine("Ready.\nWatching C# source files...");
-Console.ReadLine();
+
+await Observable.Never<int>();

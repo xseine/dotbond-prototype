@@ -21,7 +21,7 @@ public static class RequiredFiles
         CopyDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ts-files", "library"), libraryOutput, true);
         CopyDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ts-files", "decorators"), decoratorsOutput, true);
 
-        if (otherDecoratorsExistingContent != null)
+        if (!string.IsNullOrWhiteSpace(otherDecoratorsExistingContent))
             File.WriteAllText(otherDecoratorsPath, otherDecoratorsExistingContent);
     }
 

@@ -57,7 +57,7 @@ public static class TsRegexRepository
     public static Regex EmptyLinesRx = new(@"^\s*$\n|\r", RegexOptions.Multiline);
 
     // Array syntax must be locked before using this Regex for replacement
-    public static Regex NominalFieldAssignmentRx = new(@"(?<=(\{|,)\s*)(?<name>\w+)(?=\s*(,|\}))");
+    public static Regex NominalFieldAssignmentRx = new(@"(?<!new\[\] \{)(?<=(\{|,)\s*)(?<name>\w+)(?=\s*(,|\}))");
 
     public static Regex QueryActionsRx =
         new(

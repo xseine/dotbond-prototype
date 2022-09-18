@@ -1,5 +1,7 @@
-﻿using System.Diagnostics;
+﻿using System.Reactive.Concurrency;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -11,31 +13,68 @@ namespace Translator.IntegratedQueryRuntime;
 
 public static class EndpointSignatureObservable
 {
-    public const string LockedImplementationsFileName = EndpointGenInitializer.QueryImplementationsFile + ".locked";
-    public static string ControllersPath;
-    private static readonly string SignatureSeparator = "|";
+    private const string SignatureSeparator = "|";
     
     /// <summary>
-    /// This will tree be saved on the first run, so changes can be rolled back
+    /// Latest version of query implementations file, in its entirety (without API removal)
     /// </summary>
-    private static SyntaxTree _lockedOriginalTree;
+    private static SyntaxTree _lockedOriginalImplementationsTree;
     
-    // Same thing for the controller file.
-    private static SyntaxTree _originalControllerTree;
+    /// <summary>
+    /// Latest version of query controller files, in its entirety (without API removal)
+    /// </summary>
+    private static SyntaxTree _lockedOriginalControllerTree;
 
-    public static void InitializeObservable(FileObservable fileObservable, string csprojPath)
+    public const string LockedImplementationsFileName = EndpointGenInitializer.QueryImplementationsFile + ".locked";
+    public const string LockedControllerFileName = EndpointGenInitializer.QueryControllerFile + ".locked";
+    public static string ControllersPath;
+    private static FileSystemWatcher _fileSystemWatcher;
+    private static bool _skipInternalEvents = true;
+
+    // const int STD_INPUT_HANDLE = -10;
+    //
+    // [DllImport("kernel32.dll", SetLastError = true)]
+    // internal static extern IntPtr GetStdHandle(int nStdHandle);
+    //
+    // [DllImport("kernel32.dll", SetLastError = true)]
+    // static extern bool CancelIoEx(IntPtr handle, IntPtr lpOverlapped);
+    
+    public static async Task InitializeObservable(FileObservable fileObservable, string csprojPath)
     {
         var backendRoot = Directory.GetParent(csprojPath)!.FullName;
         ControllersPath = Path.Combine(backendRoot, "Controllers");
+
+        TryAddQueryFilesIfMissing(ref fileObservable.Compilation, fileObservable.LanguageVersion);
+
+        var implementationsPath = Path.Combine(ControllersPath, EndpointGenInitializer.QueryImplementationsFile);
+        var lockedImplementationsPath = Path.Combine(ControllersPath, LockedImplementationsFileName);
         
+        var controllerPath = Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile);
+        var lockedControllerPath = Path.Combine(ControllersPath, LockedControllerFileName);
+
+        var implementationsContent = File.Exists(lockedImplementationsPath) ? await File.ReadAllTextAsync(lockedImplementationsPath) : await File.ReadAllTextAsync(implementationsPath);
+        var controllerContent = File.Exists(lockedControllerPath) ? await File.ReadAllTextAsync(lockedControllerPath) : await File.ReadAllTextAsync(controllerPath);
+        
+        if (!File.Exists(lockedImplementationsPath)) await File.WriteAllTextAsync(lockedImplementationsPath, implementationsContent);
+        if (!File.Exists(lockedControllerPath)) await File.WriteAllTextAsync(lockedControllerPath, controllerContent);
+
+        CreateLockedTrees(fileObservable, implementationsContent, controllerContent);
+
+        var watcher = InitializeFileWatcher(implementationsPath);
+        
+        // Get newest version of implementations by observing fs for external changes
         // When the implementation file changes, proceed with signatures check only if the user confirms it
-        var implementationObservable = fileObservable.ObserveChangedFiles(e => e.FileTree.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryImplementationsFile))
-            .Where(e => e)
+        var implementationObservable = Observable.FromEventPattern<FileSystemEventArgs>(watcher, nameof(watcher.Changed))
+            .Throttle(TimeSpan.FromMilliseconds(50))
+            .Where(_ => !_skipInternalEvents)
+            .Do(async _ => await UpdateLockedContent(fileObservable, implementationsPath, lockedImplementationsPath, controllerPath, lockedControllerPath))
             .Select(_ =>
             {
                 Console.Write("Generated query implementations file has changed.\nDo you want check signatures of used endpotins [Y/n]:");
-                return Observable.FromAsync(() => Console.In.ReadLineAsync()).Select(e => e.Trim() == "" || e.Trim().ToLower() == "y");
+                return FromConsole.Select(e => e.Trim() == "" || e.Trim().ToLower() == "y");
+                // return Observable.FromAsync(() => Console.In.ReadLineAsync()).Select(e => e.Trim() == "" || e.Trim().ToLower() == "y");
             })
+            // .ObserveOn(new NewThreadScheduler())
             .Switch()
             .Where(e => e);
 
@@ -43,19 +82,50 @@ public static class EndpointSignatureObservable
         var actionsObservable = fileObservable
             .ObserveChangedFiles(input =>
                 // ApiGenerator.GetActionsFromController(input.FileTree, input.SemanticModel)?.CheckForOutOfDateSignatures(fileObservable.Compilation) ?? false)
-                ApiGenerator.GetActionsFromController(input.FileTree, input.SemanticModel).Any())
+                !input.FileTree.FilePath.EndsWith(EndpointGenInitializer.QueryImplementationsFile) && ApiGenerator.GetActionsFromController(input.FileTree, input.SemanticModel).Any())
             .Where(e => e);
         
         actionsObservable.Merge(implementationObservable)
             .StartWith(true)
             .Select(_ => RemoveOutOfDateSignaturesAndLogTheRest(ref fileObservable.Compilation, fileObservable.LanguageVersion))
             .Where(tuple => tuple != null)
+            .Do(_ => _skipInternalEvents = true)
             .AfterComplete((tuple, cancellationToken) => Task.WhenAll(
-               // File.WriteAllTextAsync(
                 File.WriteAllTextAsync(Path.Combine(ControllersPath, EndpointGenInitializer.QueryImplementationsFile), tuple.Value!.newImplementationsSource, cancellationToken),
                 File.WriteAllTextAsync(Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile), tuple.Value!.newControllerSource, cancellationToken))
             )
+            .Do(_ => Observable.Timer(TimeSpan.FromMilliseconds(100)).Take(1).Subscribe(_ => _skipInternalEvents = false))
             .Subscribe();
+
+
+        // Save from disposing
+        _fileSystemWatcher = watcher;
+    }
+
+    private static void CreateLockedTrees(FileObservable fileObservable, string implementationsContent, string controllerContent)
+    {
+        implementationsContent = implementationsContent.Replace("namespace GeneratedControllers", "namespace GeneratedControllersLock");
+        _lockedOriginalImplementationsTree = CSharpSyntaxTree.ParseText(implementationsContent, new CSharpParseOptions(fileObservable.LanguageVersion));
+        fileObservable.Compilation = fileObservable.Compilation.AddSyntaxTrees(_lockedOriginalImplementationsTree);
+
+        controllerContent = controllerContent.Replace("namespace GeneratedControllers", "namespace GeneratedControllersLock");
+        _lockedOriginalControllerTree = CSharpSyntaxTree.ParseText(controllerContent, new CSharpParseOptions(fileObservable.LanguageVersion));
+        fileObservable.Compilation = fileObservable.Compilation.AddSyntaxTrees(_lockedOriginalControllerTree);
+    }
+
+    private static async Task UpdateLockedContent(FileObservable fileObservable, string implementationsPath, string lockedImplementationsPath, string controllerPath, string lockedControllerPath)
+    {
+        var newImplementationsContent = (await File.ReadAllTextAsync(implementationsPath)).Replace("namespace GeneratedControllers", "namespace GeneratedControllersLock");
+        await File.WriteAllTextAsync(lockedImplementationsPath, newImplementationsContent);
+        var oldImplementationsTree = _lockedOriginalImplementationsTree;
+        _lockedOriginalImplementationsTree = CSharpSyntaxTree.ParseText(newImplementationsContent, new CSharpParseOptions(fileObservable.LanguageVersion));
+        fileObservable.Compilation = fileObservable.Compilation.ReplaceSyntaxTree(oldImplementationsTree, _lockedOriginalImplementationsTree);
+
+        var newControllerContent = (await File.ReadAllTextAsync(controllerPath)).Replace("namespace GeneratedControllers", "namespace GeneratedControllersLock");
+        await File.WriteAllTextAsync(lockedControllerPath, newControllerContent);
+        var oldControllerTree = _lockedOriginalControllerTree;
+        _lockedOriginalControllerTree = CSharpSyntaxTree.ParseText(newControllerContent, new CSharpParseOptions(fileObservable.LanguageVersion));
+        fileObservable.Compilation = fileObservable.Compilation.ReplaceSyntaxTree(oldControllerTree, _lockedOriginalControllerTree);
     }
 
 
@@ -67,15 +137,11 @@ public static class EndpointSignatureObservable
     /// </summary>
     private static (string signatures, string newImplementationsSource, string newControllerSource)? RemoveOutOfDateSignaturesAndLogTheRest(ref Compilation compilation, LanguageVersion languageVersion)
     {
-        var areSyntaxTreesPresent = TryAddQueryFilesIfMissing(ref compilation, languageVersion);
-        if (areSyntaxTreesPresent == false) return null;
-
-        AddLockedSyntaxTree(ref compilation, languageVersion);
             
-        if (_lockedOriginalTree == null) return null;
-        var semanticModel = compilation.GetSemanticModel(_lockedOriginalTree);
+        if (_lockedOriginalImplementationsTree == null) return null;
+        var semanticModel = compilation.GetSemanticModel(_lockedOriginalImplementationsTree);
         
-        var invocationsToLock = _lockedOriginalTree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>()
+        var invocationsToLock = _lockedOriginalImplementationsTree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>()
             .Where(e => e is { Expression: MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax id } }
                         && ModelExtensions.GetSymbolInfo(semanticModel, id).Symbol?.Kind == SymbolKind.Local)
             .Select(e =>
@@ -98,35 +164,23 @@ public static class EndpointSignatureObservable
         var namesOfMethodsToDelete = invocationsToLock.Where(e => e.DeleteAction != null).Select(e => e.DeleteAction).ToList();
 
         // Remove actions
-        var nodesToDelete = _lockedOriginalTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Where(e => namesOfMethodsToDelete.Contains(e.Identifier.Text));
-        var newNode = _lockedOriginalTree.GetRoot().RemoveNodes(nodesToDelete, SyntaxRemoveOptions.KeepNoTrivia);
+        var nodesToDelete = _lockedOriginalImplementationsTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Where(e => namesOfMethodsToDelete.Contains(e.Identifier.Text));
+        var newNode = _lockedOriginalImplementationsTree.GetRoot().RemoveNodes(nodesToDelete, SyntaxRemoveOptions.KeepNoTrivia);
         var namespaceToUpdate = newNode.DescendantNodes().OfType<FileScopedNamespaceDeclarationSyntax>().First();
         newNode = newNode.ReplaceNode(namespaceToUpdate, namespaceToUpdate.WithName(SyntaxFactory.IdentifierName("GeneratedControllers")));
         var newTree = newNode.SyntaxTree.WithFilePath(Path.Combine(ControllersPath, EndpointGenInitializer.QueryImplementationsFile));
-
-        // Update compilation
         compilation = compilation.ReplaceSyntaxTree(compilation.SyntaxTrees.First(e => e.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryImplementationsFile)), newTree);
-        _originalControllerTree ??= compilation.SyntaxTrees.First(e => e.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile));
-        var controllerNodesToDelete = _originalControllerTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Where(e => namesOfMethodsToDelete.Contains(e.Identifier.Text));
-        var newControllerTree = _originalControllerTree.GetRoot().RemoveNodes(controllerNodesToDelete, SyntaxRemoveOptions.KeepNoTrivia).SyntaxTree;
+
+        // Update controller compilation
+        var controllerNodesToDelete = _lockedOriginalControllerTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Where(e => namesOfMethodsToDelete.Contains(e.Identifier.Text));
+        var newControllerNode = _lockedOriginalControllerTree.GetRoot().RemoveNodes(controllerNodesToDelete, SyntaxRemoveOptions.KeepNoTrivia);
+        namespaceToUpdate = newControllerNode.DescendantNodes().OfType<FileScopedNamespaceDeclarationSyntax>().First();
+        newControllerNode = newControllerNode.ReplaceNode(namespaceToUpdate, namespaceToUpdate.WithName(SyntaxFactory.IdentifierName("GeneratedControllers")));
+        var newControllerTree = newControllerNode.SyntaxTree.WithFilePath(Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile));
         compilation = compilation.ReplaceSyntaxTree(compilation.SyntaxTrees.First(e => e.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile)), newControllerTree);
         
         // Return signatures of endpoints in remaining actions
         return (string.Join("\n", invocationsToLock.Where(e => e.Item1 != null).Select(e => string.Join(SignatureSeparator, e.Item1))), newTree.ToString(), newControllerTree.ToString());
-    }
-
-    /// <summary>
-    /// Original locked tree  has all the generated methods, and its semantic model is checked for errors,
-    /// rather that a already processed version whose removed method might become valid again after newest changes. 
-    /// </summary>
-    private static void AddLockedSyntaxTree(ref Compilation compilation, LanguageVersion languageVersion)
-    {
-        if (compilation.SyntaxTrees.Any(e => e == _lockedOriginalTree)) return;
-        
-        var fileContent = File.ReadAllText(Path.Combine(ControllersPath, LockedImplementationsFileName));
-        fileContent = fileContent.Replace("namespace GeneratedControllers", "namespace GeneratedControllersLock");
-        _lockedOriginalTree = CSharpSyntaxTree.ParseText(fileContent, new CSharpParseOptions(languageVersion));
-        compilation = compilation.AddSyntaxTrees(_lockedOriginalTree);
     }
 
     private static bool TryAddQueryFilesIfMissing(ref Compilation compilation, LanguageVersion languageVersion)
@@ -155,4 +209,23 @@ public static class EndpointSignatureObservable
 
         return true;
     }
+
+    private static FileSystemWatcher InitializeFileWatcher(string path)
+    {
+        var watcher = new FileSystemWatcher(Directory.GetParent(path)!.FullName);
+        watcher.Filter = Path.GetFileName(path)!;
+        watcher.NotifyFilter = NotifyFilters.LastWrite;
+        watcher.EnableRaisingEvents = true;
+        return watcher;
+    }
+
+    private static IObservable<string> FromConsole =
+        Observable
+            .Defer(() =>
+                Observable
+                    .Start(() => Console.ReadLine()));
+    // .Repeat()
+    // .Publish()
+    // .RefCount()
+    // .Do(e => Console.WriteLine("Printed: " + e));
 }

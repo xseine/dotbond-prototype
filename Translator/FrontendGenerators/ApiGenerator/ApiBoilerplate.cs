@@ -80,43 +80,44 @@ function createQueryableController<TController>(controllerName: string, controll
 }}";
     }
 
-    public static string GetQueryServiceContent()
+    public static string GetQueryServiceContent(string serverAddress)
     {
-        return @"import {BaseEndpointsService, EndpointsContext} from './base-endpoints.service';
-import {HttpClient} from '@angular/common/http';
-import {customQuery} from './library/miscellaneous';
-import {Injectable} from '@angular/core';
+        return $@"import {{BaseEndpointsService, EndpointsContext}} from './base-endpoints.service';
+import {{HttpClient}} from '@angular/common/http';
+import {{customQuery}} from './library/miscellaneous';
+import {{Injectable}} from '@angular/core';
 import './library/dates/date-extend';
 import './library/arrays/array-extend';
 
-@Injectable({
+@Injectable({{
     providedIn: 'root'
-})
-export class QueryService extends BaseEndpointsService {
+}})
+export class QueryService extends BaseEndpointsService {{
 
-    constructor(http: HttpClient) {
-        super(http, 'insert server url');
-    }
+    constructor(http: HttpClient) {{
+        {(serverAddress == null ? "throw 'Server address was not found in the proxy config. Add it, if needed, and then delete this line.'" : "// Server address is read from proxy configuration (it can be changed manually)")}
+        super(http, '{serverAddress}');
+    }}
 
-    private ctx = new EndpointsContext(this, {} as any);
+    private ctx = new EndpointsContext(this, {{}} as any);
 
     
     /*========================== Custom Queries ==========================*/
 
     // Example of a custom query
     // @customQuery
-    // public SpreadQuery() {
+    // public SpreadQuery() {{
     //     return this.ctx.MovieApi.GetMovies()
-    //         .join(this.ctx.MovieApi.GetDirectors(), 'directedBy.id', 'id', (movie, director) => ({
+    //         .join(this.ctx.MovieApi.GetDirectors(), 'directedBy.id', 'id', (movie, director) => ({{
     //             movieTitle: movie.title.toLowerCase(),
     //             directorName: director.name,
     //             ...director,
     //             ...movie
-    //         })).filter(e => e.directed.every(movie => movie.rating >= 7) && e.name == ""Denis Villeneuve"".toLowerCase())
-    //         .map(e => ({title: e.movieTitle + e.id + 23, directorName: e.directorName}))
+    //         }})).filter(e => e.directed.every(movie => movie.rating >= 7) && e.name == ""Denis Villeneuve"".toLowerCase())
+    //         .map(e => ({{title: e.movieTitle + e.id + 23, directorName: e.directorName}}))
     //         .findAsync();
-    // }
-}
+    // }}
+}}
 
 
 ";

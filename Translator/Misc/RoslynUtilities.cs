@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Microsoft.Build.Locator;
+﻿using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -13,8 +12,13 @@ public static class RoslynUtilities
     public static (List<(string Path, SyntaxTree Tree)>, Compilation, LanguageVersion, string) InitiateCompilation(string csprojFilePath)
     {
         MSBuildLocator.RegisterDefaults();
+        
         var workspace = MSBuildWorkspace.Create();
         var project = workspace.OpenProjectAsync(csprojFilePath).Result;
+        
+        if (!workspace.Diagnostics.IsEmpty)
+            workspace.Diagnostics.ForEach(e => Console.WriteLine(e.Message));
+        
         var pathsWithTrees = project.Documents.Where(doc => doc.SourceCodeKind == SourceCodeKind.Regular).Select(doc => (Path: doc.FilePath, Tree: doc.GetSyntaxTreeAsync().Result!)).ToList();
         var languageVersion = ((CSharpParseOptions)pathsWithTrees.First()!.Tree!.Options).LanguageVersion;
         var compilation = project.GetCompilationAsync().Result;
@@ -25,7 +29,7 @@ public static class RoslynUtilities
     public static Compilation CreateDemoCompilation()
     {
         var runtimeAssemblyRoot = Directory.GetParent(typeof(object).Assembly.Location).FullName;
-        
+
         MetadataReference mscorlib =
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location);
 
@@ -48,10 +52,10 @@ public static class RoslynUtilities
             references,
             new CSharpCompilationOptions(OutputKind.ConsoleApplication));
 
-        
+
         return compilation;
     }
-    
+
     public static bool InheritsFromController(INamedTypeSymbol symbol)
     {
         while (true)
@@ -103,12 +107,12 @@ public static class RoslynUtilities
         source[idx] = (sourcePath, newTree);
         return source;
     }
-    
+
 
     public static List<string> GetConstructorParametersNamespaces(ClassDeclarationSyntax classSyntax, SemanticModel semanticModel)
     {
-        return classSyntax.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First()
-            .DescendantNodes().OfType<ParameterSyntax>()
+        return classSyntax.DescendantNodes().OfType<ConstructorDeclarationSyntax>().FirstOrDefault()
+            ?.DescendantNodes().OfType<ParameterSyntax>()
             .Select(parameter => (semanticModel.GetSymbolInfo(parameter.Type).Symbol as ITypeSymbol).ContainingNamespace.ToString()).ToList();
     }
 
@@ -119,7 +123,7 @@ public static class RoslynUtilities
 
 
     public static TypeSymbolLocation GetLocation(this ITypeSymbol typeSymbol) => new(typeSymbol.GetSourceFile(), typeSymbol.GetSymbolFullName());
-    
+
     public static IEnumerable<ITypeSymbol> GetTypesInFile(FileAnalysisCallbackInput input, IEnumerable<string> typeNames)
     {
         var (syntaxTree, semanticModel, assemblyName) = input;
@@ -136,7 +140,7 @@ public static class RoslynUtilities
         {
             // Skip the baseClass itself, only subtypes
             if (symbol.Name == baseClass) return false;
-            
+
             while (true)
             {
                 if (symbol.Name == baseClass)
@@ -158,7 +162,6 @@ public static class RoslynUtilities
 
         return types;
     }
-    
 }
 
 public record struct TypeSymbolLocation(string FilePath, string FullName);
@@ -167,4 +170,3 @@ public record struct UsedTypeSymbolLocation(TypeSymbolLocation Location, TypeSym
 {
     public static implicit operator TypeSymbolLocation(UsedTypeSymbolLocation e) => e.Location;
 }
-
