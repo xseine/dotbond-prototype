@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Translator\Translator.csproj" />
+      <ProjectReference Include="..\DotBond\DotBond.csproj" />
     </ItemGroup>
 
     <ItemGroup>

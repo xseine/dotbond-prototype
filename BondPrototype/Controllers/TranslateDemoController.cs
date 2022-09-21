@@ -9,7 +9,7 @@ public class TranslateDemoController : ControllerBase
     [HttpGet]
     public IActionResult Index(string source)
     {
-        var translation = Translator.TranslateApi.TranslateDemo(source);
+        var translation = DotBond.TranslateApi.TranslateDemo(source);
         return new JsonResult(translation);
     }
 

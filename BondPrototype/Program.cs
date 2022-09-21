@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.FileProviders;
 using Newtonsoft.Json;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
-using Translator.IntegratedQueryRuntime;
+using DotBond.IntegratedQueryRuntime;
 
 var builder = WebApplication.CreateBuilder(args);
 

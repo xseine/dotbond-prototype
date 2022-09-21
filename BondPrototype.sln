@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BondPrototype", "BondPrototype\BondPrototype.csproj", "{0B6B8B6A-BD30-4C90-8716-7A39D1F0ED1A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Translator", "Translator\Translator.csproj", "{0F234349-D4BE-4500-AEB1-6E91D24EB28E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotBond", "DotBond\DotBond.csproj", "{0F234349-D4BE-4500-AEB1-6E91D24EB28E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TranslatorTests", "TranslatorTests\TranslatorTests.csproj", "{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}"
 EndProject

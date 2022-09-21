@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.NodeServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
-using Translator.IntegratedQueryRuntime;
+using DotBond.IntegratedQueryRuntime;
 
 namespace TranslatorTests;
 
@@ -32,7 +32,7 @@ public class Tests
     public async Task TestTranslation(string sourceFile)
     {
         var source = await File.ReadAllTextAsync(sourceFile);
-        var tsSource = Translator.TranslateApi.TranslateDemo(source);
+        var tsSource = DotBond.TranslateApi.TranslateDemo(source);
 
         var fileName = _cnt++ +".ts";
         var translationFilePath = Path.Combine(Path.GetTempPath(), "TranslatorTests", fileName);
