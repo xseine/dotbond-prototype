@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TranslatorTests.Utilities;
+namespace DotBondTests.Utilities;
 
 public static class TaskExtensions
 {

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using DotBond.IntegratedQueryRuntime;
 
-namespace TranslatorTests;
+namespace DotBondTests;
 
 public class Tests
 {

@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BondPrototype", "BondProtot
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotBond", "DotBond\DotBond.csproj", "{0F234349-D4BE-4500-AEB1-6E91D24EB28E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TranslatorTests", "TranslatorTests\TranslatorTests.csproj", "{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotBondTests", "DotBondTests\DotBondTests.csproj", "{874214E2-B2B3-4C70-8D79-C87F0CB04CF6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
