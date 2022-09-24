@@ -5,7 +5,7 @@ Run the first two to see what the demo is about (or use Dockerfile), and then ru
 
 <br/>
 <img src="https://i.imgur.com/qfZKQUJ.png" width="150" />
-<h2 style="margin-top: 0; line-height: 1"> API tool for dynamic development</h2>
+<h2 style="margin-top: 0; line-height: 1">API tool for dynamic development</h2>
 
 DotBond is a code-first tool for integrating frontend with backend that provides a powerful query layer on top of the API.<br/>
 It provides code generations and server-side query processing capabilities to clients, and it allows server to easily control the query processing.
