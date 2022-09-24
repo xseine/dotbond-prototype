@@ -137,7 +137,8 @@ public static class EndpointGenInitializer
                 var returnStatement = translationTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>()
                     .First(method => method.Identifier.Text == action.Identifier.Text).DescendantNodes().OfType<ReturnStatementSyntax>().First();
                 var type = semanticModel.GetTypeInfo(returnStatement.Expression).Type;
-                // var errorsForDebug = semanticModel.Compilation.GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
+
+                if (type.IsValueType || type.Name == "String") return action.WithReturnType(SyntaxFactory.ParseTypeName(type.Name).WithTrailingTrivia(SyntaxFactory.Space));
                 
                 // Handle only anonymous types, or generics with anonymous type arguments
                 if (!type.IsAnonymousType && type is INamedTypeSymbol {IsGenericType: true} generic && generic.TypeArguments.All(e => !e.IsAnonymousType))
