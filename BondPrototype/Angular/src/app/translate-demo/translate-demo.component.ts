@@ -18,6 +18,8 @@ import patternMatchingSource from './examples/pattern-matching.txt';
 import dictionariesSource from './examples/dictionaries.txt';
 // @ts-ignore
 import carSource from './examples/car.txt';
+// @ts-ignore
+import overloadSource from './examples/overload.txt';
 import {spToast} from '../common/other/spToast';
 import {UntilDestroy} from '@ngneat/until-destroy';
 import XRegExp from 'xregexp';
@@ -39,7 +41,17 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
     @ViewChild('consoleTrayTrigger', {read: ElementRef}) consoleTrayTrigger: ElementRef;
     @ViewChild('saveAsModalTrigger', {read: ElementRef}) saveAsModalTrigger: ElementRef;
 
-    builtInExamples = ['Basics', 'Basics 2', 'Object Creation', 'Declarations', 'LINQ', 'Pattern Matching', 'Dictionaries', 'Car'] as const;
+    examples = {
+        'Basics': basicsSource,
+        'Basics 2': basics2Source,
+        'Object Creation': objectCreationSource,
+        'Declarations': declarationsSource,
+        'LINQ': linqSource,
+        'Pattern Matching': patternMatchingSource,
+        'Dictionaries': dictionariesSource,
+        'Car': carSource,
+        'Method Overload': overloadSource
+    } as const;
     translateClick = new Subject<void>();
     isLoadingTranslation = false;
     translation$: Observable<string>;
@@ -102,24 +114,8 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
 
     /*========================== Event Listeners ==========================*/
 
-    public loadExampleOnPick(example: typeof this.builtInExamples[number] | string): void {
-        let value = example === 'Object Creation'
-            ? objectCreationSource
-            : example === 'Declarations'
-                ? declarationsSource
-                : example === 'Basics'
-                    ? basicsSource
-                        : example === 'Basics 2'
-                            ? basics2Source
-                            : example === 'LINQ'
-                                ? linqSource
-                                : example === 'Pattern Matching' ?
-                                    patternMatchingSource
-                                    : example === 'Dictionaries'
-                                        ? dictionariesSource
-                                        : example === 'Car'
-                                            ? carSource
-                                            : null;
+    public loadExampleOnPick(example: keyof this['examples'] | string): void {
+        let value = this.examples[example as any];
 
         // If null, then it's a saved user sheet
         if (!value) {
@@ -174,7 +170,9 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
         let options = {compilerOptions: {module: ts.ModuleKind.ES2015, target: ts.ScriptTarget.ES2017}};
 
         let jsSource = ts.transpileModule(tsSource, options).outputText as string;
-
+        
+        let hasStaticMain = jsSource.match(/class (?<class>\w+) .+? static main/s);
+        if (hasStaticMain) jsSource += '\n\n' + hasStaticMain.groups['class'] + '.main();'
 
         let matchedDefinitions = [];
         let balancedCurlyBRaces = XRegExp.matchRecursive(jsSource, '\\{', '\\}', 'g');

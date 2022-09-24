@@ -48,7 +48,7 @@
 <!-- examples -->
 <div id="toolbar">
     <sp-picker id="picker-m" size="m" label="Query name" #picker (change)="loadExampleOnPick(picker.value); !userCodeSheets.includes(picker.value) ? (picker.value = null) : null;">
-        <sp-menu-item *ngFor="let example of builtInExamples" value="{{example}}">{{example}}</sp-menu-item>
+        <sp-menu-item *ngFor="let example in examples" value="{{example}}">{{example}}</sp-menu-item>
         <sp-menu-divider *ngIf="userCodeSheets.length"></sp-menu-divider>
         <sp-menu-item *ngFor="let example of userCodeSheets" value="{{example}}">{{example}}</sp-menu-item>
     </sp-picker>

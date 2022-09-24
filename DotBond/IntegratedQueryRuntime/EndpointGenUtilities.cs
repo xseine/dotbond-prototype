@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using DotBond.Misc.Exceptions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -70,11 +71,14 @@ public static class EndpointGenUtilities
     public static (ITypeSymbol actionReturnTypeSymbol, bool isCollection, bool isActionResult) GetActionReturnType
         (string action, string controller, List<SyntaxTree> containingSyntaxTrees, ref Compilation compilation)
     {
-        var tree = containingSyntaxTrees.First(tree =>
+        var tree = containingSyntaxTrees.FirstOrDefault(tree =>
         {
             var treeText = tree.GetText().ToString();
             return treeText.Contains("class " + controller + "Controller") && treeText.Contains(action);
         });
+
+        if (tree == null)
+            throw new MissingDefinitionException($"Missing controller: \"{controller}\", or its actions: \"{action}\".");
 
         var semanticModel = compilation.GetSemanticModel(tree);
         var actionDeclarationSyntax = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().Where(classDeclaration => classDeclaration.Identifier.Text == controller + "Controller")

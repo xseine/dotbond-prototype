@@ -1,28 +1,43 @@
-﻿export class Appointment {
-    public static schedule(appointmentDateDescription: string): Date {
-        return new Date(appointmentDateDescription);
+﻿class GFG {
+    private add0(a: number, b: number): number {
+        let sum = a + b;
+        return sum;
     };
 
-    public static hasPassed(appointmentDate: Date): boolean {
-        return (appointmentDate < new Date());
+    private add1(a: number, b: number, c: number): number {
+        let sum = a + b + c;
+        return sum;
     };
 
-    public static isAfternoonAppointment(appointmentDate: Date): boolean {
-        return (this._afternoonStartHour <= appointmentDate.getHours() && appointmentDate.getHours() < this._afternoonEndHour);
+    public add(a: number, b: number): number ;
+    public add(a: number, b: number, c: number): number ;
+    public add(a: number, b: number, c?: number): number {
+        return (() => {
+            if (true && typeof a == 'number' && typeof b == 'number' && c == null) return this.add0(a, b);
+            else if (true && typeof a == 'number' && typeof b == 'number' && typeof c == 'number') return this.add1(a, b, c);
+        })();
+    }
+
+    public addComposed(a: number, b: number, c: number | null): number {
+        return (() => {
+            if (true && typeof a == 'number' && typeof b == 'number' && typeof c == 'number') return this.add(a, b, c);
+            else if (true && typeof a == 'number' && typeof b == 'number' && c == null) return this.add(a, b)
+                ;
+        })();
     };
 
-    public static description(appointmentDate: Date): string {
-        return `You have an appointment on ${appointmentDate}.`;
-    };
+    public static main(args: string[]): void {
 
-    public static anniversaryDate(): Date {
-        return new Date('DateTime.Now.Year-_anniversaryMonth-_anniversaryDayT00:00:00.00');
-    };
+        // Creating Object
+        let ob = new GFG();
 
-    //------------------------------------------- fixed values
-    private static readonly _afternoonStartHour: number = 12;
-    private static readonly _afternoonEndHour: number = 18;
-    private static readonly _anniversaryMonth: number = 9;
-    private static readonly _anniversaryDay: number = 15;
+        let sum1 = ob.add(1, 2);
+        console.log("sum of the two "
+            + "integer value : " + sum1);
+
+        let sum2 = ob.add(1, 2, 3);
+        console.log("sum of the three "
+            + "integer value : " + sum2);
+    };
 }
 

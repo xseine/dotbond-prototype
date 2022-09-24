@@ -9,7 +9,7 @@ public partial class Rewriter
 {
     public override SyntaxNode VisitSwitchExpression(SwitchExpressionSyntax node)
     {
-        var leadingTrivia = node.Arms.First().GetLeadingTrivia();
+        var leadingTrivia = node.Arms.First().GetLeadingTrivia().ToFullString();
 
         var newArms = node.Arms.Select(arm =>
         {
@@ -22,15 +22,15 @@ public partial class Rewriter
                         ? SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, isPattern, (ExpressionSyntax)base.Visit(arm.WhenClause.Condition)) as ExpressionSyntax
                         : (ExpressionSyntax)base.Visit(arm.WhenClause.Condition)
                     : isPattern,
-                Expression: SyntaxFactory.ReturnStatement(((ExpressionSyntax)base.Visit(arm.Expression)).WithLeadingTrivia(SyntaxFactory.Space))
-                    .WithLeadingTrivia(arm.EqualsGreaterThanToken.TrailingTrivia));
+                Expression: SyntaxFactory.ReturnStatement(((ExpressionSyntax)base.Visit(arm.Expression).WithoutTrailingTrivia()).WithLeadingTrivia(SyntaxFactory.Space))
+                    .WithLeadingTrivia(arm.EqualsGreaterThanToken.TrailingTrivia).WithTrailingTrivia(arm.Expression.GetTrailingTrivia()));
         });
 
         var ifStatements = newArms.Select(tuple => tuple.Condition != null ? SyntaxFactory.IfStatement(tuple.Condition, tuple.Expression) : tuple.Expression as StatementSyntax).ToList();
         ifStatements.Reverse();
-        var ifAggregate = ifStatements.Skip(1).Cast<IfStatementSyntax>().Aggregate(ifStatements.First().WithLeadingTrivia(leadingTrivia),
-                (acc, curr) => curr.WithElse(SyntaxFactory.ElseClause(acc.WithLeadingTrivia(SyntaxFactory.Space)).WithLeadingTrivia(leadingTrivia.Prepend(SyntaxFactory.CarriageReturnLineFeed))))
-            .WithLeadingTrivia(leadingTrivia);
+        var ifAggregate = ifStatements.Skip(1).Cast<IfStatementSyntax>().Aggregate(ifStatements.First().WithLeadingTrivia(leadingTrivia + "\t"),
+                (acc, curr) => curr.WithElse(SyntaxFactory.ElseClause(acc.WithLeadingTrivia(SyntaxFactory.Space)).WithLeadingTrivia("\n" + leadingTrivia + "\t")))
+            .WithLeadingTrivia(leadingTrivia + "\t");
 
         var overrideVisit = (IfStatementSyntax)base.VisitIfStatement((IfStatementSyntax)ifAggregate);
 
@@ -46,9 +46,10 @@ public partial class Rewriter
 
     private static SyntaxNode CreateIIFE(SyntaxTriviaList openingTrivia, BlockSyntax block, SyntaxTriviaList closingTrivia)
     {
-        block = block.WithStatements(SyntaxFactory.List(block.Statements.Take(block.Statements.Count - 1)
-            .Append(block.Statements.Last().WithTrailingTrivia(block.Statements.Last().GetTrailingTrivia().AddRange(closingTrivia)))));
-        return SyntaxFactory.InvocationExpression(SyntaxFactory.ParenthesizedExpression(SyntaxFactory.ParenthesizedLambdaExpression(block.WithTrailingTrivia(closingTrivia))))
+        return SyntaxFactory.InvocationExpression(SyntaxFactory.ParenthesizedExpression(
+                SyntaxFactory.ParenthesizedLambdaExpression(block.WithOpenBraceToken(block.OpenBraceToken.WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)).WithCloseBraceToken(
+                    block.CloseBraceToken.WithLeadingTrivia(
+                        closingTrivia)))))
             .WithLeadingTrivia(openingTrivia);
     }
 }

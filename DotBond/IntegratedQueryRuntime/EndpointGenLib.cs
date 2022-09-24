@@ -2,6 +2,7 @@
 using System.Reactive.Threading.Tasks;
 using System.Text.RegularExpressions;
 using DotBond.Misc;
+using DotBond.Misc.Exceptions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using static DotBond.IntegratedQueryRuntime.TsRegexRepository;
@@ -28,8 +29,12 @@ public static class EndpointGenLib
         var tsDefinitions = EndpointDefinitionRx.Matches(tsDefinitionsFileContent);
 
         var translations = new List<TranslatedEndpoint>();
-        foreach (Match tsDefinition in tsDefinitions) 
-            translations.Add(TranslateEndpoint(tsDefinition.Value, ref compilation));
+        foreach (Match tsDefinition in tsDefinitions)
+            try
+            {
+                translations.Add(TranslateEndpoint(tsDefinition.Value, ref compilation));
+            }
+            catch (MissingDefinitionException) { }
 
         // Ignore those translations without body
         translations = translations.Where(t => t.Body.Length > 1).ToList();

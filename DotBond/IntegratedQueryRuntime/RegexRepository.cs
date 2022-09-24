@@ -61,7 +61,7 @@ public static class TsRegexRepository
 
     public static Regex QueryActionsRx =
         new(
-            $@"((?<attributes>({MatchBrackets(BracketType.SquareBrackets)}\s*)*)|\s*)public[^\(]+? (?<actionName>\w+){MatchBrackets(BracketType.Parenthasis)}(?<implementation> => base\..+?;|\s*{MatchBrackets(BracketType.CurlyBrackets)})");
+            $@"((?<attributes>({MatchBrackets(BracketType.SquareBrackets)}\s*)*)|\s*)public override [^\(]+? (?<actionName>\w+){MatchBrackets(BracketType.Parenthasis)}(?<implementation> => base\..+?;|\s*{MatchBrackets(BracketType.CurlyBrackets)}|[^;]+;)");
 }
 
 public enum BracketType

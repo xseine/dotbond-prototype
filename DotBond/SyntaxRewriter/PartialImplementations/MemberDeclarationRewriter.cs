@@ -120,7 +120,9 @@ public partial class Rewriter
 
         if (overrideVisit.ExpressionBody != null)
         {
-            overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))));
+            overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
+                .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
+                .WithLeadingTrivia(SyntaxFactory.CarriageReturnLineFeed, leadingTrivia, leadingTrivia)));
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
 
