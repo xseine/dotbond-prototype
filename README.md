@@ -48,3 +48,10 @@ This approach also allows for an easy integration logic of different backend sys
 Tool will be usable inside a single code repository or inside multiple using GitHub Actions.
 
 <img src="https://i.imgur.com/d0DVlfy.png" />
+
+## Instructions
+
+After installation, create a `bond.json` file in the project root for the configuration ([example](https://raw.githubusercontent.com/xseine/dotbond-prototype/develop/BondPrototype/bond.json)). After
+that is done, run the tool with the path to the .csproj file as argument.
+
+**Currently only Angular is supported.**

@@ -48,9 +48,7 @@ public sealed class ApiGenerator : AbstractGenerator
             var parameterTypes = actionSymbol.Parameters.SelectMany(p => p.Type is INamedTypeSymbol { IsGenericType: true } type ? type.TypeArguments.ToArray() : new[] { p.Type }).ToList();
 
             // 2) Get return type
-            var returnType = actionSymbol.ReturnType is INamedTypeSymbol { IsGenericType: true, Name: "ActionResult" } namedTypeSymbol ?
-                namedTypeSymbol.TypeArguments.First() :
-                actionSymbol.ReturnType;
+            var returnType = FindReturnTypeToUse(actionSymbol.ReturnType);
 
             // 3) Get HTTP Method
             var httpMethod = actionSymbol.GetAttributes().Any(attribute => attribute.AttributeClass is { Name: "HttpPostAttribute" }) ? "POST" : "GET";
@@ -100,13 +98,23 @@ public sealed class ApiGenerator : AbstractGenerator
     public HashSet<TypeSymbolLocation> GetUsedTypes()
     {
         return _actions.Values
-            .SelectMany(action => action.Parameters.Select(p => p.Type)
-                .Concat(action.ReturnType is INamedTypeSymbol { IsGenericType: true } type ? type.TypeArguments.ToArray() : new[] { action.ReturnType })
-                .Select(symbol => symbol is INamedTypeSymbol { IsGenericType: true, Name: "List" or "IList" or "IEnumerable" or "ICollection" } namedTypeSymbol ?
-                    namedTypeSymbol.TypeArguments.First() :
-                    symbol)
-                .Where(IsReferenceTypeForTranslation)
-                .Select(type => type.GetLocation())).ToHashSet();
+            .SelectMany(action =>
+            {
+                try
+                {
+                    return action.Parameters.Select(p => p.Type)
+                        .Concat(action.ReturnType is INamedTypeSymbol { IsGenericType: true } type ? type.TypeArguments.ToArray() : new[] { action.ReturnType })
+                        .Select(symbol => symbol is INamedTypeSymbol { IsGenericType: true, Name: "List" or "IList" or "IEnumerable" or "ICollection" } namedTypeSymbol
+                            ? namedTypeSymbol.TypeArguments.First()
+                            : symbol)
+                        .Where(IsReferenceTypeForTranslation)
+                        .Select(type => type.GetLocation()).ToList();
+                }
+                catch
+                {
+                    return new List<TypeSymbolLocation>();
+                }
+            }).ToHashSet();
     }
 
     /// <summary>
@@ -198,9 +206,7 @@ export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}
 
             foreach (var (action, returnTypeSymbol) in actionReturnTypes)
             {
-                var symbol = returnTypeSymbol is INamedTypeSymbol { IsGenericType: true, Name: "ActionResult" } namedTypeSymbol ?
-                    namedTypeSymbol.TypeArguments.First() :
-                    returnTypeSymbol;
+                var symbol = FindReturnTypeToUse(returnTypeSymbol);
 
                 symbol = symbol is INamedTypeSymbol { IsGenericType: true, Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" } collectionSymbol ?
                     collectionSymbol.TypeArguments.First() :
@@ -251,7 +257,8 @@ export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}
 
         string GetNonNullableType(ITypeSymbol type)
         {
-            var result = TypeTranslation.ParseType(SyntaxFactory.ParseTypeName(RemoveNamespace(type.ToString())), type);
+            var result = TypeTranslation.ParseType(
+                SyntaxFactory.ParseTypeName(TypeTranslation.GetContainingTypesPath(type) is { } path ? path + "." + type.Name : type.Name), type);
             if (result.EndsWith(" | null")) result = result[..^" | null".Length];
             return result;
         }
@@ -261,14 +268,22 @@ export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}
                 $"{(p.BindingAttribute != null ? $"@{LowerCaseWord(p.BindingAttribute)} " : null)}{p.Name}{(p.Type.NullableAnnotation == NullableAnnotation.Annotated ? "?" : null)}: {GetNonNullableType(p.Type)}"));
     }
     
+    // TypeTranslation.GetContainingTypesPath(returnType) is string a ? a + "." + returnType.Name : returnType.Name
+    
     private static string CreateReturnExpression(ITypeSymbol returnType) => returnType.Name == "IActionResult" ?
         "any" :
         TypeTranslation.ParseType(
-            SyntaxFactory.ParseTypeName(RemoveNamespace(returnType.ToString())), returnType);
+            SyntaxFactory.ParseTypeName(returnType.Name), returnType);
 
-    private static bool DoesReturnView(SyntaxNode methodSyntax) =>
-        methodSyntax.DescendantNodes().OfType<ReturnStatementSyntax>().Any(returnSyntax => returnSyntax.Expression is InvocationExpressionSyntax
-        {
-            Expression: IdentifierNameSyntax { Identifier.Text: "View" or "PartialView" }
-        });
+
+    private static ITypeSymbol FindReturnTypeToUse(ITypeSymbol returnTypeSymbol)
+    {
+        return returnTypeSymbol is INamedTypeSymbol { IsGenericType: true, Name: "ActionResult" } actionResultSymbol
+            ? actionResultSymbol.TypeArguments.First()
+            : returnTypeSymbol is INamedTypeSymbol { IsGenericType: true, Name: "Task" } taskSymbol
+                ? taskSymbol.TypeArguments.First() is INamedTypeSymbol { IsGenericType: true, Name: "ActionResult" } taskActionResultSymbol
+                    ? taskActionResultSymbol.TypeArguments.First()
+                    : taskSymbol.TypeArguments.First()
+                : returnTypeSymbol;
+    }
 }

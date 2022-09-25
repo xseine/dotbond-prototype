@@ -233,7 +233,7 @@ public partial class Rewriter
         }
     }
 
-    private TypeSyntax GetFullTypeSyntax(TypeSyntax type)
+    public TypeSyntax GetFullTypeSyntax(TypeSyntax type)
     {
         var typeSymbol = SemanticModel.SyntaxTree.GetRoot().Contains(type) ? SemanticModel.GetTypeInfo(type).Type ?? SemanticModel.GetSymbolInfo(type).Symbol as ITypeSymbol : null;
         var containingPath = TypeTranslation.GetContainingTypesPath(typeSymbol);

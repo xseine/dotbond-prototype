@@ -122,7 +122,11 @@ public static class RoslynUtilities
     public static string GetSymbolFullName(this ISymbol symbol) => $"{symbol.ContainingNamespace}.{symbol.Name}";
 
 
-    public static TypeSymbolLocation GetLocation(this ITypeSymbol typeSymbol) => new(typeSymbol.GetSourceFile(), typeSymbol.GetSymbolFullName());
+    public static TypeSymbolLocation GetLocation(this ITypeSymbol typeSymbol)
+    {
+        while (typeSymbol.ContainingType != null) typeSymbol = typeSymbol.ContainingType;
+        return new(typeSymbol.GetSourceFile(), typeSymbol.GetSymbolFullName());
+    }
 
     public static IEnumerable<ITypeSymbol> GetTypesInFile(FileAnalysisCallbackInput input, IEnumerable<string> typeNames)
     {

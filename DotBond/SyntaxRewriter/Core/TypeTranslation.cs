@@ -53,7 +53,7 @@ namespace ConsoleApp1.Common
             var isNullable = type.IsKind(SyntaxKind.NullableType);
             if (isNullable)
                 type = ((NullableTypeSyntax)type).ElementType;
-
+            
             var result = type switch
             {
                 ArrayTypeSyntax array => ParseType(array.ElementType, ((IArrayTypeSymbol)typeSymbol).ElementType) + "[]",

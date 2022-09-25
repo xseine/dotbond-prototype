@@ -365,3 +365,5 @@ Microsoft.NET.Sdk.Razor.SourceGenerators
 **.nupkg
 # NuGet Symbol Packages
 **.snupkg
+
+**/nuget.config
