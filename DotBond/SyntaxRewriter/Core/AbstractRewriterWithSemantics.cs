@@ -29,8 +29,8 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
         if (node is IdentifierNameSyntax {Identifier.Text: not "dynamic" and not "DateTime"})
         {
             var symbol = SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetSymbolInfo(node).Symbol : null;
-            if (symbol != null)
-                ImportedSymbols.Add((ITypeSymbol)SemanticModel.GetSymbolInfo(node).Symbol);
+            if (symbol != null && symbol.DeclaringSyntaxReferences.Any())
+                ImportedSymbols.Add((ITypeSymbol)symbol);
         }
         else if (node is GenericNameSyntax generic)
         {
@@ -38,7 +38,7 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
             if (!collectionTypeNames.Contains(generic.Identifier.Text) && generic.Identifier.Text != "Dictionary")
             {
                 var typeSymbol = ModelExtensions.GetTypeInfo(SemanticModel, node).Type;
-                if (typeSymbol != null) ImportedSymbols.Add(typeSymbol.OriginalDefinition);
+                if (typeSymbol != null && typeSymbol.DeclaringSyntaxReferences.Any()) ImportedSymbols.Add(typeSymbol.OriginalDefinition);
             }
             else
                 foreach (var typeSyntax in generic.TypeArgumentList.Arguments.ToList()) 

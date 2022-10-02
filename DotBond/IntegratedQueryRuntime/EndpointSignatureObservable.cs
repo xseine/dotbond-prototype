@@ -172,7 +172,9 @@ public static class EndpointSignatureObservable
         namespaceToUpdate = newControllerNode.DescendantNodes().OfType<FileScopedNamespaceDeclarationSyntax>().First();
         newControllerNode = newControllerNode.ReplaceNode(namespaceToUpdate, namespaceToUpdate.WithName(SyntaxFactory.IdentifierName("GeneratedControllers")));
         var newControllerTree = newControllerNode.SyntaxTree.WithFilePath(Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile));
-        compilation = compilation.ReplaceSyntaxTree(compilation.SyntaxTrees.First(e => e.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile)), newControllerTree);
+        compilation = compilation.SyntaxTrees.Any(e => e.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile))
+            ? compilation.ReplaceSyntaxTree(compilation.SyntaxTrees.First(e => e.FilePath == Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile)), newControllerTree)
+            : compilation.AddSyntaxTrees(newControllerTree);
         
         // Return signatures of endpoints in remaining actions
         return (newTree.ToString(), newControllerTree.ToString());

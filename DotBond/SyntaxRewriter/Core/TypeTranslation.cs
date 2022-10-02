@@ -23,7 +23,7 @@ namespace ConsoleApp1.Common
                     or "Int64" or "UInt32" or "UInt64" or "short" or "byte" or "long" or "decimal" => "number",
                 "bool" => "boolean",
                 "DateTime" or "DateTimeOffset" => "Date",
-                "Guid" or "String" or "char" => "string",
+                "Guid" or "String" or "string" or "char" => "string",
                 "dynamic" or "object" => "any",
                 _ => null
             };
@@ -37,46 +37,47 @@ namespace ConsoleApp1.Common
         /// <returns></returns>
         public static string ParseType(TypeSyntax type, SemanticModel semanticModel)
         {
-            return ParseType(type, semanticModel.SyntaxTree.GetRoot().Contains(type) ? semanticModel.GetTypeInfo(type).Type ?? semanticModel.GetSymbolInfo(type).Symbol as ITypeSymbol : null);
+            if (type.IsKind(SyntaxKind.PredefinedType))
+                return GetPrimitiveTsType(type.ToString()) ?? type.ToString();
+            
+            return ParseType(semanticModel.SyntaxTree.GetRoot().Contains(type) ? semanticModel.GetTypeInfo(type).Type ?? semanticModel.GetSymbolInfo(type).Symbol as ITypeSymbol : null);
         }
 
         /// <summary>
         /// Converts lists, dictionaries and primitive types to their TS counterparts.
         /// </summary>
-        /// <param name="type">String representation of the type to convert.</param>
         /// <param name="typeSymbol"></param>
         /// <returns></returns>
-        public static string ParseType(TypeSyntax type, ITypeSymbol typeSymbol)
+        public static string ParseType(ITypeSymbol typeSymbol)
         {
-            if (type == null) return "";
-
-            var isNullable = type.IsKind(SyntaxKind.NullableType);
-            if (isNullable)
-                type = ((NullableTypeSyntax)type).ElementType;
+            if (typeSymbol == null) return "";
+            if (typeSymbol.Kind == SymbolKind.ErrorType) return "any";
             
-            var result = type switch
+            var result = typeSymbol switch
             {
-                ArrayTypeSyntax array => ParseType(array.ElementType, ((IArrayTypeSymbol)typeSymbol).ElementType) + "[]",
-                GenericNameSyntax
+                IArrayTypeSymbol array => ParseType(array.ElementType) + "[]",
+                INamedTypeSymbol
                 {
-                    Identifier.Text: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable"
+                    IsGenericType: true,
+                    Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable"
                     or "HashSet" or "IReadOnlyCollection" or "IReadOnlyList"
-                } collection when typeSymbol is INamedTypeSymbol or null => ParseType(collection.TypeArgumentList.Arguments.First(), (typeSymbol as INamedTypeSymbol)?.TypeArguments.First()) + "[]",
+                } collection => ParseType(collection.TypeArguments.First()) + "[]",
 
-                GenericNameSyntax
+                INamedTypeSymbol
                 {
-                    Identifier.Text: "IDictionary" or "Dictionary" or "KeyValuePair"
+                    IsGenericType: true,
+                    Name: "IDictionary" or "Dictionary" or "KeyValuePair"
                     or "SortedDictionary" or "IReadOnlyDictionary" or "ReadOnlyDictionary"
-                } dictionary => $"{{[key: {ParseType(dictionary.TypeArgumentList.Arguments[0], (typeSymbol as INamedTypeSymbol)?.TypeArguments[0])}]" + 
-                                $": {ParseType(dictionary.TypeArgumentList.Arguments[1], (typeSymbol as INamedTypeSymbol)?.TypeArguments[1])}}}",
-
-                GenericNameSyntax generic when typeSymbol is INamedTypeSymbol or null =>
-                    $"{generic.Identifier.Text}<{string.Join(", ", generic.TypeArgumentList.Arguments.Select((arg, idx) => ParseType(arg, (typeSymbol as INamedTypeSymbol)?.TypeArguments[idx])))}>",
-                _ => GetPrimitiveTsType(type.ToString()) ?? type.ToString()
+                } dictionary => $"{{[key: {ParseType(dictionary.TypeArguments[0])}]" + 
+                                $": {ParseType(dictionary.TypeArguments[1])}}}",
+                
+                INamedTypeSymbol {IsGenericType: true, Name: "Nullable"} nullable => $"{ParseType(nullable.TypeArguments.First())} | null",
+                
+                INamedTypeSymbol {IsGenericType: true} generic =>
+                    $"{generic.Name}<{string.Join(", ", generic.TypeArguments.Select((arg, _) => ParseType(arg)))}>",
+                _ => GetPrimitiveTsType(typeSymbol.Name) ?? (!typeSymbol.DeclaringSyntaxReferences.Any() ? "any" : typeSymbol.Name)
             };
-
-            // Handle nullable
-            result += isNullable ? " | null" : null;
+            
             // Handle nested types
             var containingPath = GetContainingTypesPath(typeSymbol);
             if (containingPath != null) result = containingPath + "." + result;

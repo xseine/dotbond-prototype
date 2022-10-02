@@ -1,4 +1,5 @@
-﻿using DotBond.Workspace;
+﻿using DotBond.Misc.Exceptions;
+using DotBond.Workspace;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -117,7 +118,7 @@ public static class RoslynUtilities
     }
 
     public static string GetSourceFile(this ITypeSymbol symbol) => symbol.DeclaringSyntaxReferences.FirstOrDefault()?.SyntaxTree.FilePath
-                                                                   ?? throw new Exception("Symbol is not defined in the project's source code.");
+                                                                   ?? throw new MissingSymbolException("Symbol is not defined in the project's source code.");
 
     public static string GetSymbolFullName(this ISymbol symbol) => $"{symbol.ContainingNamespace}.{symbol.Name}";
 

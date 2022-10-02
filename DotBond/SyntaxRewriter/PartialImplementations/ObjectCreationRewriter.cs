@@ -85,9 +85,19 @@ public partial class Rewriter
         GetSymbolsFromTypeSyntax(node.Type);
 
         var type = GetFullTypeSyntax(node.Type);
+        var typeSymbol = SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetTypeInfo(node).Type : null;
 
         // (1) or simply return the node
-        if (node.Initializer == null) return base.VisitObjectCreationExpression(node.WithType(type));
+        if (node.Initializer == null)
+        {
+            if ((typeSymbol == null || !typeSymbol.DeclaringSyntaxReferences.Any()) && isNodeOriginal)
+            {
+                type = SyntaxFactory.ParseTypeName("").WithTrailingTrivia(SyntaxFactory.Whitespace("{} as any"));
+                return base.VisitObjectCreationExpression(node.WithType(type).WithNewKeyword(SyntaxFactory.MissingToken(SyntaxKind.NewKeyword)).WithArgumentList(null));
+            }
+
+            return base.VisitObjectCreationExpression(node.WithType(type));
+        }
 
         var overrideVisit = isNodeOriginal ? (ObjectCreationExpressionSyntax)base.VisitObjectCreationExpression(node)! : node;
         overrideVisit = overrideVisit.WithType(type);
@@ -134,7 +144,8 @@ public partial class Rewriter
                 var expressions = overrideVisit.Initializer.Expressions.Cast<InitializerExpressionSyntax>()
                     .Select((e, idx) =>
                     {
-                        return $"{(idx == 0 ? openingBlockTrivia : null)}{e.GetLeadingTrivia()}[{e.Expressions[0].ToFullString()}]: {e.Expressions[1].WithTrailingTrivia(trailingTrivias[idx]).ToFullString()}";
+                        return
+                            $"{(idx == 0 ? openingBlockTrivia : null)}{e.GetLeadingTrivia()}[{e.Expressions[0].ToFullString()}]: {e.Expressions[1].WithTrailingTrivia(trailingTrivias[idx]).ToFullString()}";
                     }).ToList();
 
                 var closeBracketTrivia = overrideVisit.Initializer.CloseBraceToken.LeadingTrivia.ToFullString();
@@ -154,9 +165,11 @@ public partial class Rewriter
         else
         {
             var statements = new SyntaxList<SyntaxNode>();
-            var a = typeName != "Dictionary" 
-                ? overrideVisit.WithInitializer(null).WithLeadingTrivia(SyntaxFactory.Space).WithoutTrailingTrivia()
-                : SyntaxFactory.ParseExpression($"{{}} as {TypeTranslation.ParseType(node.Type, SemanticModel)}");
+            var a = typeSymbol == null || !typeSymbol.DeclaringSyntaxReferences.Any()
+                ? SyntaxFactory.ParseExpression(" {} as any")
+                : typeName != "Dictionary"
+                    ? overrideVisit.WithInitializer(null).WithLeadingTrivia(SyntaxFactory.Space).WithoutTrailingTrivia()
+                    : SyntaxFactory.ParseExpression($"{{}} as {TypeTranslation.ParseType(node.Type, SemanticModel)}");
             var newLocalDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
                 SyntaxFactory.IdentifierName("let").WithLeadingTrivia(fieldLeadingTrivia).WithTrailingTrivia(SyntaxFactory.Space),
                 new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(
@@ -174,7 +187,8 @@ public partial class Rewriter
                 if (idx == 0) assignmentExpressionSyntax = expression.WithLeadingTrivia(openingBlockTrivia.Concat(expression.GetLeadingTrivia()));
                 // Prepend "__ret." to assignment
                 assignmentExpressionSyntax = assignmentExpressionSyntax.WithLeft(
-                    assignmentExpressionSyntax.Left.WithLeadingTrivia(assignmentExpressionSyntax.Left.GetLeadingTrivia().Append("__ret" + (assignmentExpressionSyntax.Left.IsKind(SyntaxKind.ImplicitElementAccess) ? "" : "."))));
+                    assignmentExpressionSyntax.Left.WithLeadingTrivia(assignmentExpressionSyntax.Left.GetLeadingTrivia()
+                        .Append("__ret" + (assignmentExpressionSyntax.Left.IsKind(SyntaxKind.ImplicitElementAccess) ? "" : "."))));
 
                 statements = statements.Add(SyntaxFactory.ExpressionStatement(assignmentExpressionSyntax.WithoutTrailingTrivia()).WithTrailingTrivia(trailingTrivias[idx++]));
             }
@@ -201,11 +215,11 @@ public partial class Rewriter
     /// </summary>
     public override SyntaxNode VisitAnonymousObjectCreationExpression(AnonymousObjectCreationExpressionSyntax node)
     {
-        var overrideVisit = (AnonymousObjectCreationExpressionSyntax) base.VisitAnonymousObjectCreationExpression(node);
+        var overrideVisit = (AnonymousObjectCreationExpressionSyntax)base.VisitAnonymousObjectCreationExpression(node);
         overrideVisit = overrideVisit.WithNewKeyword(SyntaxFactory.MissingToken(SyntaxKind.NewKeyword));
-        
+
         if (node.Parent is not SimpleLambdaExpressionSyntax) return overrideVisit;
-        
+
         // Attach parenthasis to braces
         return overrideVisit
             .WithOpenBraceToken(CreateToken(SyntaxKind.OpenBraceToken, "({")
@@ -221,7 +235,7 @@ public partial class Rewriter
     /// </summary>
     public override SyntaxNode VisitAnonymousObjectMemberDeclarator(AnonymousObjectMemberDeclaratorSyntax node)
     {
-        var overrideVisit = (AnonymousObjectMemberDeclaratorSyntax) base.VisitAnonymousObjectMemberDeclarator(node);
+        var overrideVisit = (AnonymousObjectMemberDeclaratorSyntax)base.VisitAnonymousObjectMemberDeclarator(node);
 
         if (overrideVisit.NameEquals != null)
             return overrideVisit.WithNameEquals(overrideVisit.NameEquals.WithEqualsToken(CreateToken(SyntaxKind.EqualsToken, ": ")));
@@ -246,7 +260,8 @@ public partial class Rewriter
         var typeSymbol = ((IMethodSymbol)ModelExtensions.GetSymbolInfo(SemanticModel, node).Symbol).ContainingType;
         var typeSyntax = SyntaxFactory.ParseTypeName(typeSymbol.Name);
 
-        ImportedSymbols.Add(typeSymbol);
+        if (typeSymbol.DeclaringSyntaxReferences.Any())
+            ImportedSymbols.Add(typeSymbol);
 
         return VisitObjectCreationExpression(SyntaxFactory.ObjectCreationExpression(typeSyntax.WithLeadingTrivia(SyntaxFactory.Space), node.ArgumentList,
             node.Initializer != null ? (InitializerExpressionSyntax)VisitInitializerExpression(node.Initializer) : null), false);

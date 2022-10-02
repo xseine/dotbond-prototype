@@ -1,5 +1,6 @@
 ﻿using ConsoleApp1.Common;
 using DotBond.Misc;
+using DotBond.Misc.Exceptions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -37,6 +38,19 @@ public partial class Rewriter
         var hasDotBeforeIt = parent.DescendantNodesAndTokens().TakeWhile(nodeOrToken => nodeOrToken != node).Reverse()
             .TakeWhile(nodeOrToken => nodeOrToken.IsKind(SyntaxKind.DotToken) || nodeOrToken.IsKind(SyntaxKind.WhitespaceTrivia))
             .Any(nodeOrToken => nodeOrToken.IsKind(SyntaxKind.DotToken));
+
+
+        if (symbol.IsStatic && !hasDotBeforeIt)
+        {
+            if (!symbol.DeclaringSyntaxReferences.Any()) throw new MissingStaticClassException();
+            ImportedSymbols.Add((ITypeSymbol)symbol.ContainingSymbol);
+
+            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.IdentifierName(symbol.ContainingSymbol.Name),
+                    node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia())
+                .WithLeadingTrivia(node.GetLeadingTrivia())
+                .WithTrailingTrivia(node.GetTrailingTrivia());
+        }
 
         var isInsideObjectInitializer = parent.IsKind(SyntaxKind.SimpleAssignmentExpression) && (parent.Parent?.IsKind(SyntaxKind.ObjectInitializerExpression) ?? false);
 

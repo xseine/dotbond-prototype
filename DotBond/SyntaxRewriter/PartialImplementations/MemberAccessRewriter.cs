@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using DotBond.Misc.Exceptions;
 using DotBond.SyntaxRewriter.Core;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -52,10 +53,10 @@ public partial class Rewriter : AbstractRewriterWithSemantics
         // If property, record the type and return
         if (symbol is IPropertySymbol propertySymbol)
         {
-            if (isLocalVariableToImportTypeOf)
+            if (isLocalVariableToImportTypeOf && propertySymbol.DeclaringSyntaxReferences.Any())
                 ImportedSymbols.Add(propertySymbol.ContainingSymbol as ITypeSymbol);
             else if (propertySymbol.IsStatic)
-                return TranslateStaticProperty(propertySymbol) ?? throw new Exception($"No translation provided for the {propertySymbol}. This part of the source must be removed.");
+                return TranslateStaticProperty(propertySymbol) ?? throw new MissingStaticClassException($"No translation provided for the {propertySymbol}. This part of the source must be removed.");
 
             // return overrideVisit;
         }
@@ -638,8 +639,7 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                     default:
                         if (isLocalVariableToImportTypeOf) break;
 
-                        // TODO: provjeriti da li je metod included
-                        if ((symbol.ContainingSymbol as ITypeSymbol)!.IsValueType == false && symbol.ContainingSymbol.Name != "String")
+                        if ((symbol.ContainingSymbol as ITypeSymbol)!.IsValueType == false && symbol.ContainingSymbol.Name != "String" && symbol.ContainingSymbol.DeclaringSyntaxReferences.Any())
                             ImportedSymbols.Add(symbol.ContainingSymbol as ITypeSymbol);
 
                         if ((symbol.ContainingSymbol as ITypeSymbol).IsStatic)
