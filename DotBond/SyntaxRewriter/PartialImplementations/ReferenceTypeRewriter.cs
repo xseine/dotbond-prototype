@@ -68,7 +68,7 @@ public partial class Rewriter
             _areNestedClassesBeingCaptured = false;
         }
 
-        overrideVisit = HandleOverloads(node, overrideVisit);
+        overrideVisit = (ClassDeclarationSyntax)HandleOverloads(node, overrideVisit);
 
         return overrideVisit;
     }
@@ -110,9 +110,58 @@ export namespace {nodeName} {{
         return ((InterfaceDeclarationSyntax)base.VisitInterfaceDeclaration(node)).WithModifiers(SyntaxFactory.TokenList(modifiers));
     }
 
+    /// <summary>
+    /// Structs should get an explicit parameterless constructor if one doesn't exist and it has other constructors defined.
+    /// This is done so their definition is compatible with a class, which is what they are translated to.
+    /// </summary>
+    /// <param name="node"></param>
+    /// <returns></returns>
     public override SyntaxNode VisitStructDeclaration(StructDeclarationSyntax node)
     {
         var overrideVisit = ((StructDeclarationSyntax)base.VisitStructDeclaration(node)).WithKeyword(CreateToken(SyntaxKind.StructKeyword, "class "));
+
+        var constructors = overrideVisit.ChildNodes().OfType<ConstructorDeclarationSyntax>().ToList();
+        if (constructors.Any() && constructors.All(e => e.ParameterList.Parameters.Count != 0))
+        {
+            var parameterlessConstructor = constructors.First().WithBody(SyntaxFactory.Block()).WithParameterList(SyntaxFactory.ParameterList());
+            overrideVisit = overrideVisit.InsertNodesBefore(constructors.First(), new[] { parameterlessConstructor });
+        }
+
+        overrideVisit = (StructDeclarationSyntax)HandleOverloads(node, overrideVisit);
+
+        // Add "Equals" method
+        if (node.ChildNodes().OfType<MethodDeclarationSyntax>().Any(e => e.Identifier.Text == "Equals") == false)
+        {
+            var structMembers = node.ChildNodes().OfType<PropertyDeclarationSyntax>().Select(e => CamelCaseConversion.LowercaseWord(e.Identifier))
+                .Concat(node.ChildNodes().OfType<FieldDeclarationSyntax>()
+                    .SelectMany(e => e.Declaration.Variables.Select(fieldDeclaration => CamelCaseConversion.LowercaseWord(fieldDeclaration.Identifier)))).ToList();
+            var overrideBody = SyntaxFactory.Block(
+                SyntaxFactory.ReturnStatement(structMembers.Skip(1).Aggregate(SyntaxFactory.ParseExpression($" this.{structMembers[0]} == obj.{structMembers[0]}"),
+                    (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, acc, SyntaxFactory.ParseExpression($"this.{curr} == obj.{curr}")))));
+
+            var newMethod = SyntaxFactory.MethodDeclaration(
+                new SyntaxList<AttributeListSyntax>(),
+                SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, node.GetLeadingTrivia().FirstOrDefault() + "public")),
+                SyntaxFactory.ParseTypeName("bool"),
+                null,
+                SyntaxFactory.Identifier($" equals "),
+                null,
+                SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(new[]
+                {
+                    SyntaxFactory.Parameter(SyntaxFactory.Identifier($"obj: {node.Identifier.Text}"))
+                })),
+                new SyntaxList<TypeParameterConstraintClauseSyntax>(),
+                overrideBody,
+                null,
+                CreateToken(SyntaxKind.SemicolonToken, ";")
+            ).WithTrailingTrivia(node.GetTrailingTrivia());
+
+            var overrideVisitNewMethod = (MethodDeclarationSyntax)VisitMethodDeclaration(newMethod);
+            ;
+            var (leadingTrivia, trailingTrivia) = (node.ChildNodes().First().GetLeadingTrivia(), node.ChildNodes().First().GetTrailingTrivia());
+            overrideVisit = overrideVisit.InsertNodesAfter(overrideVisit.ChildNodes().Last(), new[] { overrideVisitNewMethod.WithLeadingTrivia(leadingTrivia).WithTrailingTrivia(trailingTrivia) });
+        }
+
         var accessModifier = node.Modifiers.First(e => e.IsKind(SyntaxKind.PublicKeyword));
         return !accessModifier.IsKind(SyntaxKind.None) ? overrideVisit.WithModifiers(SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, "export "))) : overrideVisit.WithModifiers(default);
     }
@@ -208,7 +257,7 @@ export namespace {nodeName} {{
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
 
-        if (node.Parent is ClassDeclarationSyntax { BaseList: { } })
+        if (node.Parent is TypeDeclarationSyntax { BaseList: { } })
         {
             var (leading, trailing) = overrideVisit.Body.Statements.FirstOrDefault() is { } first
                 ? (first.GetLeadingTrivia(), first.GetTrailingTrivia())
@@ -221,7 +270,7 @@ export namespace {nodeName} {{
         return overrideVisit.WithIdentifier(SyntaxFactory.Identifier("constructor"));
     }
 
-    private ClassDeclarationSyntax HandleOverloads(ClassDeclarationSyntax node, ClassDeclarationSyntax overrideVisit)
+    private TypeDeclarationSyntax HandleOverloads(TypeDeclarationSyntax node, TypeDeclarationSyntax overrideVisit)
     {
         var tsOverloads = overrideVisit.DescendantNodes().OfType<MethodDeclarationSyntax>().GroupBy(e => e.Identifier.Text, e => (BaseMethodDeclarationSyntax)e).Where(e => e.Count() > 1).ToList();
 
@@ -284,7 +333,7 @@ export namespace {nodeName} {{
                 : node.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(e => CamelCaseConversion.LowercaseWord(((dynamic)e).Identifier) == overloadName)).ToList();
 
             csOverloads = csOverloads.Where((_, idx) => !overloadsToRemoveIdx.Contains(idx)).ToList();
-            
+
             var isPublic = csOverloads.Any(e => e.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)));
             var parameters = string.Join(", ", compositeDeclarations.Select(e => e.Name + ": " + string.Join(" | ", e.Types.Distinct())));
             var returnType = string.Join(" | ",
@@ -295,6 +344,8 @@ export namespace {nodeName} {{
             var maxParameters = csOverloads.Max(e => e.ParameterList.Parameters.Count);
             var parameterTuple =
                 SyntaxFactory.TupleExpression(CreateArgumentList(compositeDeclarations.Select(e => SyntaxFactory.IdentifierName(e.Name.Replace("?", "")) as ExpressionSyntax).ToArray()).Arguments);
+            var wasParameterlessConstructorAddedInOverride = isConstructorDeclaration && tsOverloads[0].Count() > csOverloads.Count();
+
             var arms =
                 SyntaxFactory.SeparatedList(csOverloads.Select((csOverload, idx) =>
                     SyntaxFactory.SwitchExpressionArm(SyntaxFactory.RecursivePattern(null,
@@ -305,7 +356,10 @@ export namespace {nodeName} {{
                             null,
                             null),
                         SyntaxFactory.InvocationExpression(
-                            SyntaxFactory.IdentifierName("this." + (isConstructorDeclaration ? "constructor" : (string)CamelCaseConversion.LowercaseWord(((dynamic)csOverload).Identifier)) + idx),
+                            SyntaxFactory.IdentifierName("this." + (isConstructorDeclaration 
+                                ? "constructor"
+                                : (string)CamelCaseConversion.LowercaseWord(((dynamic)csOverload).Identifier))
+                                                                 + (idx + (wasParameterlessConstructorAddedInOverride ? 1 : 0))),
                             CreateArgumentList(compositeDeclarations.Select(e => SyntaxFactory.IdentifierName(e.Name.Replace("?", ""))).ToArray()))).WithLeadingTrivia(leadingTrivia + "\t")));
 
             var switchExpression = SyntaxFactory.SwitchExpression(
@@ -314,13 +368,14 @@ export namespace {nodeName} {{
             );
 
             var expressionBody = isConstructorDeclaration
-                ? SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(switchExpression).WithLeadingTrivia("\n" + leadingTrivia + "\t")).WithCloseBraceToken(CreateToken(SyntaxKind.CloseBraceToken, "\n" + leadingTrivia + "}"))
+                ? SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(switchExpression).WithLeadingTrivia("\n" + leadingTrivia + "\t"))
+                    .WithCloseBraceToken(CreateToken(SyntaxKind.CloseBraceToken, "\n" + leadingTrivia + "}"))
                 : SyntaxFactory.Block(SyntaxFactory.ReturnStatement(switchExpression).WithLeadingTrivia("\n" + leadingTrivia + "\t"))
                     .WithCloseBraceToken(CreateToken(SyntaxKind.CloseBraceToken, "\n" + leadingTrivia + "}"));
 
 
             // Add super() in constructors, and remove it from other calls
-            if (isConstructorDeclaration)
+            if (isConstructorDeclaration && node.Parent is TypeDeclarationSyntax { BaseList: { } })
             {
                 expressionBody = expressionBody.WithStatements(
                     expressionBody.Statements.Insert(0,
@@ -335,8 +390,10 @@ export namespace {nodeName} {{
                 overrideVisit = overrideVisit.RemoveNodes(superCalls, SyntaxRemoveOptions.KeepNoTrivia);
             }
 
+            var hasSavedSymbols = TryGetSavedSymbolsToUse(node);
             var visitedExpressionBody = (BlockSyntax)VisitBlock(expressionBody);
 
+            if (hasSavedSymbols) ClearSavedSymbols();
 
             var overloadImplementationFunction = SyntaxFactory.MethodDeclaration(default, csOverloads.First().Modifiers, SyntaxFactory.ParseTypeName(""), null, SyntaxFactory.Identifier(overloadName),
                     default,
@@ -374,7 +431,7 @@ export namespace {nodeName} {{
 
         var newMethod = SyntaxFactory.MethodDeclaration(
             new SyntaxList<AttributeListSyntax>(),
-            SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, node.GetLeadingTrivia().First() + "public")),
+            SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, node.GetLeadingTrivia().FirstOrDefault() + "public")),
             returnType,
             null,
             SyntaxFactory.Identifier($" {methodName} "),

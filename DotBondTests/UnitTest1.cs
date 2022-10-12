@@ -51,7 +51,7 @@ public class Tests
         foreach (var definition in matchedDefinitions)
             jsSource = jsSource.Replace(definition, "");
         
-        var namespaceRx = new Regex(@$"\(function \(.*?\) {TsRegexRepository.MatchBrackets(BracketType.CurlyBrackets)}\)\([^)]+\)\)");
+        var namespaceRx = new Regex(@$"\(function \(.*?\) {TsRegexRepository.MatchBrackets(BracketType.CurlyBrackets)}\)\([^)]+\)\);?");
         matchedDefinitions.AddRange(namespaceRx.Matches(jsSource).Select(e => e.Value));
         foreach (var definition in matchedDefinitions)
             jsSource = jsSource.Replace(definition, "");

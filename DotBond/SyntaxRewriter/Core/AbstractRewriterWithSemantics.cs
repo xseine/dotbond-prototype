@@ -10,6 +10,9 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
 
     public TopLevelSymbolsSet ImportedSymbols { get; } = new(new SynonymComparer());
 
+    protected readonly Dictionary<string, ISymbol> _savedSymbolsFromOriginalTree = new();
+    protected readonly Dictionary<string, ITypeSymbol> _savedTypeSymbolsFromOriginalTree = new();
+
     /// <summary>
     /// Lists all the properties used by the classes and their properties in the syntax tree.
     /// </summary>
@@ -44,6 +47,64 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
                 foreach (var typeSyntax in generic.TypeArgumentList.Arguments.ToList()) 
                     GetSymbolsFromTypeSyntax(typeSyntax);
         }
+    }
+
+    protected ISymbol GetSavedSymbol(SyntaxNode node)
+    {
+        var key = GetNodeKey(node);
+        return _savedSymbolsFromOriginalTree.TryGetValue(key, out var savedSymbol) ? savedSymbol : null;
+    }
+
+    protected ITypeSymbol GetSavedTypeSymbol(SyntaxNode node)
+    {
+        var key = GetNodeKey(node);
+        return _savedTypeSymbolsFromOriginalTree.TryGetValue(key, out var savedSymbol) ? savedSymbol : null;
+    }
+
+    private static string GetNodeKey(SyntaxNode node)
+    {
+        var key = node is IdentifierNameSyntax {Parent: MemberAccessExpressionSyntax parent} identifier ? $"{parent.ToString().ToLower()}+{identifier.ToString().ToLower()}" : node.ToString();
+        return key;
+    }
+
+    protected ISymbol GetSymbol(SyntaxNode node)
+    {
+        return GetSavedSymbol(node) ??
+            (SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetSymbolInfo(node).Symbol : null);
+    }
+
+    protected ITypeSymbol GetTypeSymbol(SyntaxNode node)
+    {
+        return GetSavedTypeSymbol(node) ??
+               (SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetTypeInfo(node).Type : null);
+    }
+
+    protected bool TryGetSavedSymbolsToUse(SyntaxNode node)
+    {
+        if (!SemanticModel.SyntaxTree.GetRoot().Contains(node)) return false;
+    
+        foreach (var expressionSyntax in node.DescendantNodes().OfType<ExpressionSyntax>())
+        {
+            var key = GetNodeKey(expressionSyntax);
+            
+            var symbol = SemanticModel.GetSymbolInfo(expressionSyntax).Symbol;
+            if (symbol != null)
+                _savedSymbolsFromOriginalTree.TryAdd(key, symbol);
+        }
+
+        foreach (var expressionSyntax in node.DescendantNodes().OfType<ExpressionSyntax>())
+        {
+            var key = GetNodeKey(expressionSyntax);
+            _savedTypeSymbolsFromOriginalTree.TryAdd(key, SemanticModel.GetTypeInfo(expressionSyntax).Type);
+        }
+
+        return true;
+    }
+
+    protected void ClearSavedSymbols()
+    {
+        _savedSymbolsFromOriginalTree.Clear();
+        _savedTypeSymbolsFromOriginalTree.Clear();
     }
 
     public static SyntaxToken CreateToken(SyntaxKind tokenKind, string text = "")

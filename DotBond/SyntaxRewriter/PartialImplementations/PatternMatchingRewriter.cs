@@ -136,13 +136,15 @@ public partial class Rewriter
                             => RewriteIsPattern(tupleArguments[idx].Expression,
                                 (positionalPattern.Pattern as TypePatternSyntax)?.Type ?? ((DeclarationPatternSyntax)positionalPattern.Pattern).Type),
                         ConstantPatternSyntax constant => SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, tupleArguments[idx].Expression, constant.Expression),
+                        RelationalPatternSyntax relational => SyntaxFactory.BinaryExpression(GetSyntaxKindFromOperator(relational.OperatorToken), tupleArguments[idx].Expression, relational.Expression),
                         // "is not null"
                         UnaryPatternSyntax
                             {
                                 RawKind: (int)SyntaxKind.NotPattern, Pattern: ConstantPatternSyntax { Expression: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression } }
                             }
                             => tupleArguments[idx].Expression,
-                        _ => null
+                        DiscardPatternSyntax => null,
+                        _ => throw new Exception($"Unhandled pattern encountered {positionalPattern.Pattern}")
                     });
 
                 var replacements = overrideVisit.PositionalPatternClause.Subpatterns
@@ -153,6 +155,7 @@ public partial class Rewriter
                         _ => null as (string, ExpressionSyntax)?
                     }).Where(e => e != null);
 
+                newConditionals = newConditionals.Where(e => e != null).ToList();
                 var combinedConditional = newConditionals.Any()
                     ? newConditionals.Skip(1).Aggregate(newConditionals.First(), (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, acc, curr))
                     : null;
@@ -287,4 +290,13 @@ public partial class Rewriter
             return hasReplacement ? identifierReplacement : node;
         }
     }
+
+    private SyntaxKind GetSyntaxKindFromOperator(SyntaxToken operatorToken) => operatorToken.Kind() switch
+    {
+        SyntaxKind.LessThanToken => SyntaxKind.LessThanExpression,
+        SyntaxKind.LessThanEqualsToken => SyntaxKind.LessThanOrEqualExpression,
+        SyntaxKind.GreaterThanToken => SyntaxKind.GreaterThanExpression,
+        SyntaxKind.GreaterThanEqualsToken => SyntaxKind.GreaterThanOrEqualExpression,
+        _ => throw new Exception($"Relational operator ${operatorToken} not supported in the pattern. Contact the developers?")
+    };
 }

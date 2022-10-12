@@ -56,8 +56,8 @@ public partial class Rewriter
 
         if (hasDotBeforeIt == false && isInsideObjectInitializer == false)
             return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                SyntaxFactory.IdentifierName("this"),
-                node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia())
+                    SyntaxFactory.IdentifierName("this"),
+                    node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia())
                 .WithLeadingTrivia(node.GetLeadingTrivia())
                 .WithTrailingTrivia(node.GetTrailingTrivia());
 
@@ -75,9 +75,9 @@ public partial class Rewriter
 
             var parameters = attr.ArgumentList?.Arguments
                 .GroupBy(arg => arg.NameEquals != null)
-                .Select(group => group.Key ?
-                    $"{{ {string.Join(", ", group.Select(arg => $"{arg.NameEquals!.Name}: {base.Visit(arg.Expression)}"))} }}" :
-                    string.Join(", ", group.Select(arg => base.Visit(arg.Expression))));
+                .Select(group => group.Key
+                    ? $"{{ {string.Join(", ", group.Select(arg => $"{arg.NameEquals!.Name}: {base.Visit(arg.Expression)}"))} }}"
+                    : string.Join(", ", group.Select(arg => base.Visit(arg.Expression))));
 
             return $@"@{char.ToLower(attrName[0]) + attrName[1..]}({(parameters != null ? string.Join(", ", parameters) : null)})";
         }));
@@ -108,7 +108,7 @@ public partial class Rewriter
             overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(overrideVisit.ExpressionBody.Expression)));
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
-        
+
         return overrideVisit.WithModifiers(default).WithReturnType(SyntaxFactory.ParseTypeName("function ")).WithLeadingTrivia(node.GetLeadingTrivia());
     }
 
@@ -137,15 +137,17 @@ public partial class Rewriter
         // Division of integers is rounded in C#
         if (node.IsKind(SyntaxKind.DivideExpression))
         {
-            var isLeftOperandDecimal = SemanticModel.GetTypeInfo(node.Left).Type.Name is "Float" or "Double" or "Decimal";
-            var isRightOperandDecimal = SemanticModel.GetTypeInfo(node.Right).Type.Name is "Float" or "Double" or "Decimal";
+            var isLeftOperandDecimal =
+                (GetSavedTypeSymbol(node.Left) ?? SemanticModel.GetTypeInfo(node.Left).Type).Name is "Float" or "Double" or "Decimal";
+            var isRightOperandDecimal =
+                (GetSavedTypeSymbol(node.Right) ?? SemanticModel.GetTypeInfo(node.Right).Type).Name is "Float" or "Double" or "Decimal";
 
             if (!isLeftOperandDecimal && !isRightOperandDecimal)
             {
                 var overrideVisit = base.VisitBinaryExpression(node) as BinaryExpressionSyntax;
                 return SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                         SyntaxFactory.IdentifierName("Math"), SyntaxFactory.IdentifierName("floor")),
-                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new []{SyntaxFactory.Argument(overrideVisit)})));
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[] { SyntaxFactory.Argument(overrideVisit) })));
             }
         }
 
@@ -164,25 +166,29 @@ public partial class Rewriter
         overrideVisit = overrideVisit.WithOperatorToken(SyntaxFactory.Token(isToken.LeadingTrivia, SyntaxKind.IsKeyword, "==", "", isToken.TrailingTrivia));
         var left = overrideVisit.Left;
         var right = overrideVisit.Right;
-        
-        if (overrideVisit.Right is IdentifierNameSyntax id)
+
+        if (GetTypeSymbol(overrideVisit.Right) is { TypeKind: TypeKind.Enum } @enum)
+        {
+            return SyntaxFactory.ParseExpression($"{left.ToFullString()} in {@enum}");
+        }
+        else if (overrideVisit.Right is IdentifierNameSyntax id)
         {
             var subClasses = RoslynUtilities.GetSubclasses(SemanticModel.Compilation, id.Identifier.Text);
             var leftWithTrivia = left.WithTrailingTrivia(left.GetTrailingTrivia().Prepend("?.constructor"));
 
             var exactConstructorCheck = (SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, id));
-            
+
             if (subClasses.Count == 0) return exactConstructorCheck;
 
             leftWithTrivia = leftWithTrivia.WithTrailingTrivia(leftWithTrivia.GetTrailingTrivia().ToArray()[1..].Prepend("?.constructor.name"));
-            
+
             return SyntaxFactory.ParenthesizedExpression(subClasses.Aggregate(exactConstructorCheck,
-                (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalOrExpression, acc.WithTrailingTrivia(" "),
-                    SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, SyntaxFactory.IdentifierName($" '{curr}'")).WithLeadingTrivia(" ")))
+                    (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalOrExpression, acc.WithTrailingTrivia(" "),
+                        SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, leftWithTrivia, SyntaxFactory.IdentifierName($" '{curr}'")).WithLeadingTrivia(" ")))
                 .WithLeadingTrivia());
         }
-        
-        
+
+
         var (rhs, isPrimitive) = overrideVisit.Right switch
         {
             PredefinedTypeSyntax { Keyword.Text: not "DateTime" } predefined => (TypeTranslation.ParseType(predefined, SemanticModel), true),
@@ -210,9 +216,7 @@ public partial class Rewriter
         if (isVerbatim)
         {
             var newContents = new SyntaxList<InterpolatedStringContentSyntax>(overrideVisit.Contents.Select(e =>
-                e is InterpolatedStringTextSyntax text ?
-                    text.WithTextToken(CreateToken(SyntaxKind.InterpolatedStringTextToken, text.TextToken.Text.Replace("\"\"", "\""))) :
-                    e));
+                e is InterpolatedStringTextSyntax text ? text.WithTextToken(CreateToken(SyntaxKind.InterpolatedStringTextToken, text.TextToken.Text.Replace("\"\"", "\""))) : e));
             overrideVisit = overrideVisit.WithContents(newContents);
         }
 
@@ -236,10 +240,15 @@ public partial class Rewriter
     /// <returns></returns>
     public override SyntaxNode VisitLiteralExpression(LiteralExpressionSyntax node)
     {
-        if (node.Kind() == SyntaxKind.StringLiteralExpression && node.Token.Text.StartsWith("@"))
+        if (node.IsKind(SyntaxKind.StringLiteralExpression) && node.Token.Text.StartsWith("@"))
         {
             var newToken = CreateToken(SyntaxKind.StringLiteralToken, $"String.raw`{node.Token.Text[2..^1].Replace("\"\"", "\"")}`");
             return node.WithToken(newToken);
+        }
+        else if (node.IsKind(SyntaxKind.NumericLiteralExpression))
+        {
+            if (node.Token.Text.EndsWith("m"))
+                return node.WithToken(SyntaxFactory.Literal(node.Token.LeadingTrivia, node.Token.Text[..^1], null, node.Token.TrailingTrivia));
         }
         else if (node.IsKind(SyntaxKind.DefaultLiteralExpression))
         {
@@ -275,16 +284,62 @@ public partial class Rewriter
     /// <returns></returns>
     public override SyntaxNode VisitThrowStatement(ThrowStatementSyntax node)
     {
-        var overrideVisit = (ThrowStatementSyntax)base.VisitThrowStatement(node);
-        var argument = ((ObjectCreationExpressionSyntax)overrideVisit.Expression).ArgumentList.Arguments.FirstOrDefault();
-        var message = argument.Expression switch
+        string message;
+        var argument = ((ObjectCreationExpressionSyntax)node.Expression).ArgumentList.Arguments.FirstOrDefault()?.Expression;
+        if (argument == null)
+            message = "''";
+        else
         {
-            IdentifierNameSyntax identifier => identifier.Identifier.Text,
-            LiteralExpressionSyntax literal => literal.Token.Text,
-            { } expression => expression.ToFullString()
-        };
+            var overrideArgument = base.Visit(argument);
+            message = overrideArgument switch
+            {
+                IdentifierNameSyntax identifier => identifier.Identifier.Text,
+                LiteralExpressionSyntax literal => literal.Token.Text,
+                { } expression => expression.ToFullString()
+            };
+        }
 
         return SyntaxFactory.ThrowStatement(SyntaxFactory.ParseExpression($" {message}")).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+    }
+
+    /// <summary>
+    /// <see cref="VisitThrowStatement"/>
+    /// </summary>
+    /// <param name="node"></param>
+    /// <returns></returns>
+    public override SyntaxNode VisitThrowExpression(ThrowExpressionSyntax node)
+    {
+        string message;
+        var argument = ((ObjectCreationExpressionSyntax)node.Expression).ArgumentList.Arguments.FirstOrDefault()?.Expression;
+        if (argument == null)
+            message = "''";
+        else
+        {
+            var overrideArgument = base.Visit(argument);
+            message = overrideArgument switch
+            {
+                IdentifierNameSyntax identifier => identifier.Identifier.Text,
+                LiteralExpressionSyntax literal => literal.Token.Text,
+                { } expression => expression.ToFullString()
+            };
+        }
+
+        return SyntaxFactory.ThrowExpression(SyntaxFactory.ParseExpression($" {message}")).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+    }
+
+    public override SyntaxNode VisitConditionalExpression(ConditionalExpressionSyntax node)
+    {
+        var overrideVisit = (ConditionalExpressionSyntax)base.VisitConditionalExpression(node);
+
+        if (overrideVisit.WhenTrue is ThrowExpressionSyntax throwTrue)
+            overrideVisit = overrideVisit.WithWhenTrue(CreateIIFE(throwTrue.GetLeadingTrivia(), SyntaxFactory.Block(SyntaxFactory.ThrowStatement(throwTrue.Expression)),
+                throwTrue.GetTrailingTrivia()));
+
+        if (overrideVisit.WhenFalse is ThrowExpressionSyntax throwFalse)
+            overrideVisit = overrideVisit.WithWhenTrue(CreateIIFE(throwFalse.GetLeadingTrivia(), SyntaxFactory.Block(SyntaxFactory.ThrowStatement(throwFalse.Expression)),
+                throwFalse.GetTrailingTrivia()));
+
+        return overrideVisit;
     }
 
     public override SyntaxNode VisitTypeOfExpression(TypeOfExpressionSyntax node)

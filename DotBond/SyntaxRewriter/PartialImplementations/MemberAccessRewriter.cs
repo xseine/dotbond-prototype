@@ -13,11 +13,7 @@ namespace DotBond.SyntaxRewriter.PartialImplementations;
 
 public partial class Rewriter : AbstractRewriterWithSemantics
 {
-    protected ISymbol GetSymbol(SyntaxNode node)
-    {
-        return SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetSymbolInfo(node).Symbol : null;
-    }
-    
+
     public override SyntaxNode VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
     {
         return VisitAccessExpression(node);
@@ -41,13 +37,14 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
         overrideVisit = overrideVisit.WithTrailingTrivia(node.GetTrailingTrivia());
         
-        var symbol = SemanticModel.SyntaxTree.GetRoot().Contains(node) ?
+        var symbol = GetSavedSymbol(node) ?? (SemanticModel.SyntaxTree.GetRoot().Contains(node) ?
             !isConditionalAccess ? SemanticModel.GetSymbolInfo(node).Symbol : SemanticModel.GetSymbolInfo(((ConditionalAccessExpressionSyntax)node).WhenNotNull).Symbol :
-            null;
+            null);
         if (symbol == null) return overrideVisit;
 
+        var containingExpresion = node is MemberAccessExpressionSyntax member ? member.Expression : ((ConditionalAccessExpressionSyntax)node).Expression;
         var isLocalVariableToImportTypeOf =
-            SemanticModel.GetSymbolInfo(node is MemberAccessExpressionSyntax member ? member.Expression : ((ConditionalAccessExpressionSyntax)node).Expression).Symbol?.Kind ==
+            (GetSymbol(containingExpresion) ?? SemanticModel.GetSymbolInfo(containingExpresion).Symbol)?.Kind ==
             SymbolKind.Local;
 
         // If property, record the type and return
@@ -317,6 +314,13 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         newMethodName = methodName == nameof(Enumerable.OrderBy) ? $"sort((a, b) => a.{orderKey} - b.{orderKey})" : $"sort((a, b) => b.{orderKey} - a.{orderKey})";
                         RegisterAncestorRewrite(syntaxNode =>
                             ((InvocationExpressionSyntax)syntaxNode).WithArgumentList(_emptyArgumentsList), SyntaxKind.InvocationExpression);
+                        break;
+                    }
+
+                    case nameof(IList.Clear):
+                    {
+                        RegisterAncestorRewrite(syntaxNode =>
+                            ((MemberAccessExpressionSyntax)((InvocationExpressionSyntax)syntaxNode).Expression).Expression.WithTrailingTrivia(syntaxNode.GetTrailingTrivia().Prepend(".length = 0")), SyntaxKind.InvocationExpression);
                         break;
                     }
 

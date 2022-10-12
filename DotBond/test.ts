@@ -1,43 +1,134 @@
-﻿class GFG {
-    private add0(a: number, b: number): number {
-        let sum = a + b;
-        return sum;
+﻿function savo() {
+    let console = {};
+    let __result = [];
+    console.log = function () {
+        __result = [...__result, ...arguments];
     };
 
-    private add1(a: number, b: number, c: number): number {
-        let sum = a + b + c;
-        return sum;
-    };
+    class WeatherStation {
+        constructor() {
+            this.recordDates = [];
+            this.temperatures = [];
+        }
 
-    public add(a: number, b: number): number ;
-    public add(a: number, b: number, c: number): number ;
-    public add(a: number, b: number, c?: number): number {
-        return (() => {
-            if (true && typeof a == 'number' && typeof b == 'number' && c == null) return this.add0(a, b);
-            else if (true && typeof a == 'number' && typeof b == 'number' && typeof c == 'number') return this.add1(a, b, c);
-        })();
+        acceptReading(reading) {
+            this.reading = reading;
+            this.recordDates.push(new Date());
+            this.temperatures.push(reading.temperature);
+        }
+        ;
+
+        clearAll() {
+            this.reading = new Reading();
+            this.recordDates.length = 0;
+            this.temperatures.length = 0;
+        }
+        ;
+
+        get latestTemperature() {
+            return this.reading.temperature;
+        }
+
+        get latestPressure() {
+            return this.reading.pressure;
+        }
+
+        get latestRainfall() {
+            return this.reading.rainfall;
+        }
+
+        get hasHistory() {
+            return this.recordDates.length > 1;
+        }
+
+        get longTermOutlook() {
+            return (() => {
+                if (this.reading.windDirection == WindDirection.Northerly)
+                    return Outlook.Cool;
+                else if (this.reading.windDirection == WindDirection.Easterly)
+                    return (this.reading.temperature > 20) ? Outlook.Good : Outlook.Warm;
+                else if (this.reading.windDirection == WindDirection.Southerly)
+                    return Outlook.Good;
+                else if (this.reading.windDirection == WindDirection.Westerly)
+                    return Outlook.Rainy;
+                else
+                    throw '';
+            })();
+        }
+
+        runSelfTest() {
+            return this.reading.equals(new Reading()) ? State.Bad : State.Good;
+        }
+        ;
+
+        get shortTermOutlook() {
+            return this.reading.equals(new Reading())
+                ?
+                (() => {
+                    throw '';
+                })() :
+                (() => {
+                    if (true && this.reading.temperature < 30 && this.reading.pressure < 10)
+                        return Outlook.Cool;
+                    else if (true && this.reading.temperature > 50)
+                        return Outlook.Good;
+                    else
+                        return Outlook.Warm;
+                })();
+        }
     }
 
-    public addComposed(a: number, b: number, c: number | null): number {
-        return (() => {
-            if (true && typeof a == 'number' && typeof b == 'number' && typeof c == 'number') return this.add(a, b, c);
-            else if (true && typeof a == 'number' && typeof b == 'number' && c == null) return this.add(a, b)
-                ;
-        })();
-    };
+    class Reading {
+        constructor(temperature, pressure, rainfall, windDirection) {
+            (() => {
+                if (true && typeof temperature == 'number' && typeof pressure == 'number' && typeof rainfall == 'number' && windDirection in WindDirection)
+                    return this.constructor1(temperature, pressure, rainfall, windDirection);
+            })();
+        }
 
-    public static main(args: string[]): void {
+        constructor0() {
+        }
 
-        // Creating Object
-        let ob = new GFG();
+        constructor1(temperature, pressure, rainfall, windDirection) {
+            this.temperature = temperature;
+            this.pressure = pressure;
+            this.rainfall = rainfall;
+            this.windDirection = windDirection;
+        }
 
-        let sum1 = ob.add(1, 2);
-        console.log("sum of the two "
-            + "integer value : " + sum1);
+        /*** Please do not modify this struct ***/ equals(obj) {
+            return this.temperature == obj.temperature && this.pressure == obj.pressure && this.rainfall == obj.rainfall && this.windDirection == obj.windDirection;
+        }
+        ;
+    }
 
-        let sum2 = ob.add(1, 2, 3);
-        console.log("sum of the three "
-            + "integer value : " + sum2);
-    };
+    (function (State) {
+        State[State["Good"] = 0] = "Good";
+        State[State["Bad"] = 1] = "Bad";
+    })(State || (State = {}));
+    (function (Outlook) {
+        Outlook[Outlook["Cool"] = 0] = "Cool";
+        Outlook[Outlook["Rainy"] = 1] = "Rainy";
+        Outlook[Outlook["Warm"] = 2] = "Warm";
+        Outlook[Outlook["Good"] = 3] = "Good";
+    })(Outlook || (Outlook = {}));
+    (function (WindDirection) {
+        WindDirection[WindDirection["Unknown"] = 0] = "Unknown";
+        WindDirection[WindDirection["Northerly"] = 1] = "Northerly";
+        WindDirection[WindDirection["Easterly"] = 2] = "Easterly";
+        WindDirection[WindDirection["Southerly"] = 3] = "Southerly";
+        WindDirection[WindDirection["Westerly"] = 4] = "Westerly";
+    })(WindDirection || (WindDirection = {}))
+
+
+    /*** Please do not modify this enum ***/
+    var State;
+    ;
+    /*** Please do not modify this enum ***/
+    var Outlook;
+    ;
+    /*** Please do not modify this enum ***/
+    var WindDirection;
+    ;
+    return __result
 }
-

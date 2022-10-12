@@ -36,7 +36,7 @@ namespace DotBond
             using System.Text.RegularExpressions;
             using System.Collections.Generic;
 ";
-            
+
             var syntaxTree = CSharpSyntaxTree.ParseText(usings + source);
 
             _demoCompilation = _demoCompilation?.RemoveSyntaxTrees(_previousSyntaxTree) ??
@@ -45,12 +45,12 @@ namespace DotBond
             if (!syntaxTree.GetRoot().ChildNodes().Any(e => e is not UsingDirectiveSyntax and not ClassDeclarationSyntax))
             {
                 var requiredStatement = SyntaxFactory.GlobalStatement(SyntaxFactory.ParseStatement("Console.WriteLine(\"required\");"));
-                syntaxTree = syntaxTree.GetRoot().InsertNodesBefore(syntaxTree.GetRoot().ChildNodes().First(e => e is ClassDeclarationSyntax), new[] {requiredStatement}).SyntaxTree;
+                syntaxTree = syntaxTree.GetRoot().InsertNodesBefore(syntaxTree.GetRoot().ChildNodes().First(e => e is ClassDeclarationSyntax), new[] { requiredStatement }).SyntaxTree;
             }
-            
+
             _demoCompilation = _demoCompilation.AddSyntaxTrees(syntaxTree);
 
-            var a = _demoCompilation.GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
+            // var a = _demoCompilation.GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
 
             _previousSyntaxTree = syntaxTree;
 
@@ -73,24 +73,26 @@ namespace DotBond
             // Same as below
             if (parsedTree.ChildNodes().Any(e => e is NamespaceDeclarationSyntax or FileScopedNamespaceDeclarationSyntax) == false)
             {
-                var classDeclarations = parsedTree.ChildNodes().OfType<ClassDeclarationSyntax>().ToList();
+                var typeDeclarations = parsedTree.ChildNodes().Where(e =>
+                        e.IsKind(SyntaxKind.ClassDeclaration) || e.IsKind(SyntaxKind.StructDeclaration) || e.IsKind(SyntaxKind.RecordDeclaration) || e.IsKind(SyntaxKind.EnumDeclaration)).ToList();
 
-                if (classDeclarations.Any())
+                if (typeDeclarations.Any())
                 {
-                    parsedTree = parsedTree.RemoveNodes(classDeclarations, SyntaxRemoveOptions.KeepExteriorTrivia);
-                    classDeclarations[^1] = classDeclarations[^1].WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
+                    parsedTree = parsedTree.RemoveNodes(typeDeclarations, SyntaxRemoveOptions.KeepNoTrivia);
+                    typeDeclarations[^1] = typeDeclarations[^1].WithTrailingTrivia(typeDeclarations[^1].GetTrailingTrivia().Append(SyntaxFactory.CarriageReturnLineFeed));
 
                     var lastUsingStatement = parsedTree.ChildNodes().OfType<UsingDirectiveSyntax>().FirstOrDefault();
 
+                    if (!parsedTree.ChildNodes().Any())
+                        parsedTree = SyntaxFactory.CompilationUnit().AddMembers(SyntaxFactory.GlobalStatement(SyntaxFactory.ParseStatement("")));
+
                     parsedTree = lastUsingStatement != null
-                        ? parsedTree.InsertNodesAfter(lastUsingStatement, classDeclarations)
-                        : parsedTree.InsertNodesBefore(parsedTree.ChildNodes().First(), classDeclarations);
+                        ? parsedTree.InsertNodesAfter(lastUsingStatement, typeDeclarations)
+                        : parsedTree.InsertNodesBefore(parsedTree.ChildNodes().First(), typeDeclarations);
                 }
             }
 
             return (parsedTree.ToFullString(), rewriter.ImportedSymbols, rewriter.Attributes);
         }
-
-
     }
 }

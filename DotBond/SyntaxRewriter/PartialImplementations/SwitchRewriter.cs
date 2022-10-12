@@ -19,10 +19,10 @@ public partial class Rewriter
             return (
                 Condition: arm.WhenClause != null
                     ? isPattern != null
-                        ? SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, isPattern, (ExpressionSyntax)base.Visit(arm.WhenClause.Condition)) as ExpressionSyntax
-                        : (ExpressionSyntax)base.Visit(arm.WhenClause.Condition)
+                        ? SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, isPattern, arm.WhenClause.Condition) as ExpressionSyntax
+                        : arm.WhenClause.Condition
                     : isPattern,
-                Expression: SyntaxFactory.ReturnStatement(((ExpressionSyntax)base.Visit(arm.Expression).WithoutTrailingTrivia()).WithLeadingTrivia(SyntaxFactory.Space))
+                Expression: (arm.Expression is ThrowExpressionSyntax @throw ? SyntaxFactory.ThrowStatement(@throw.Expression) as StatementSyntax : SyntaxFactory.ReturnStatement(arm.Expression.WithLeadingTrivia(SyntaxFactory.Space)))
                     .WithLeadingTrivia(arm.EqualsGreaterThanToken.TrailingTrivia).WithTrailingTrivia(arm.Expression.GetTrailingTrivia()));
         });
 
@@ -32,8 +32,11 @@ public partial class Rewriter
                 (acc, curr) => curr.WithElse(SyntaxFactory.ElseClause(acc.WithLeadingTrivia(SyntaxFactory.Space)).WithLeadingTrivia("\n" + leadingTrivia + "\t")))
             .WithLeadingTrivia(leadingTrivia + "\t");
 
+        var hasSavedSymbols = TryGetSavedSymbolsToUse(node);
+
         var overrideVisit = (IfStatementSyntax)base.VisitIfStatement((IfStatementSyntax)ifAggregate);
 
+        if (hasSavedSymbols) ClearSavedSymbols();
         // var openingBlockTrivia = node.ArgumentList?.GetTrailingTrivia() ?? node.Type.GetTrailingTrivia();
 
         var block = SyntaxFactory.Block(overrideVisit)
@@ -44,7 +47,7 @@ public partial class Rewriter
         return CreateIIFE(node.GetLeadingTrivia(), block, node.CloseBraceToken.LeadingTrivia);
     }
 
-    private static SyntaxNode CreateIIFE(SyntaxTriviaList openingTrivia, BlockSyntax block, SyntaxTriviaList closingTrivia)
+    private static InvocationExpressionSyntax CreateIIFE(SyntaxTriviaList openingTrivia, BlockSyntax block, SyntaxTriviaList closingTrivia)
     {
         return SyntaxFactory.InvocationExpression(SyntaxFactory.ParenthesizedExpression(
                 SyntaxFactory.ParenthesizedLambdaExpression(block.WithOpenBraceToken(block.OpenBraceToken.WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed)).WithCloseBraceToken(

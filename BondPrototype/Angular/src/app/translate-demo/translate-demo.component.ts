@@ -186,7 +186,7 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
         })
 
         // namespaces are defines as iife 
-        balancedCurlyBRaces.map(e => new RegExp('\\(function \\(.*?\\) \\{' + escapeRegExp(e) + '\\}\\)\\([^)]+\\)\\)')).forEach(e => {
+        balancedCurlyBRaces.map(e => new RegExp('\\(function \\(.*?\\) \\{' + escapeRegExp(e) + '\\}\\)\\([^)]+\\)\\);?')).forEach(e => {
             let matchedDefinition = jsSource.match(e)?.[0];
 
             if (matchedDefinition) {

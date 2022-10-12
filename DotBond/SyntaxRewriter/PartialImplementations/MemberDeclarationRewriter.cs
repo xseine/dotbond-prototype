@@ -58,7 +58,7 @@ public partial class Rewriter
         GetSymbolsFromTypeSyntax(node.Type);
 
         // If accessors are defined, getter, setter and private field will be used instead
-        if (accessorList?.Accessors.Any(accessor => accessor.Body != null) is true)
+        if (accessorList?.Accessors.Any(accessor => accessor.Body != null || accessor.ExpressionBody != null) is true)
             return null;
 
         // Those with expression body are: MyProp => some expression (get-only properties) are handled specially
@@ -90,7 +90,7 @@ public partial class Rewriter
 
         var field = overrideVisit.Declaration.Variables.First();
         var fieldWithNewName = field.WithIdentifier(
-            SyntaxFactory.Identifier(field.Identifier.Text + ": " + TypeTranslation.ParseType(overrideVisit.Declaration.Type, SemanticModel)));
+            SyntaxFactory.Identifier(field.Identifier.Text + ": " + TypeTranslation.ParseType(node.Declaration.Type, SemanticModel)));
 
         // No "const" on fields in TS, but use static if parent is static
         var isClassStatic = ((ClassDeclarationSyntax)node.Parent).Modifiers.Any(e => e.IsKind(SyntaxKind.StaticKeyword));
