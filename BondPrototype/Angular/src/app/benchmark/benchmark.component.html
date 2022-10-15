@@ -32,7 +32,7 @@
         </thead>
         <tbody class="spectrum-Table-body example-list" cdkDropList (cdkDropListDropped)="rowMove.next([$event.previousIndex, $event.currentIndex])">
         <tr class="spectrum-Table-row example-box" *ngFor="let query of (querySelection$ | async)" cdkDrag cdkDragPreviewContainer="parent">
-            <td class="spectrum-Table-cell" (click)="!query.isRunning && queryBenchmarkRun.next(query)">
+            <td class="spectrum-Table-cell" (click)="!query.isRunning && queryBenchmarkRunClicked.next(query)">
                 <sp-icon-play *ngIf="!query.isRunning"></sp-icon-play>
                 <sp-progress-circle *ngIf="query.isRunning" size="s" indeterminate></sp-progress-circle>
             </td>

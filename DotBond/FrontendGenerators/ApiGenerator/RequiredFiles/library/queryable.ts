@@ -121,7 +121,7 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
      *
      * @param mainObservable If a function, operators are not applied internally, instead they are provided as parameters so the code instantiating the Observable can use them.
      */
-    constructor(mainObservable: Observable<{result: any, shouldUseClientSideProcessing: boolean}>) {
+    constructor(mainObservable: Observable<{ result: any, shouldUseClientSideProcessing: boolean }>) {
 
         this._mainObservable = mainObservable.pipe(map(({result, shouldUseClientSideProcessing}) => {
             this._shouldUseClientSideProcessing = shouldUseClientSideProcessing;
@@ -271,8 +271,9 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
 
                 if (this._shouldUseClientSideProcessing) {
                     predicate ??= _ => true;
-                    this._queryOperatorsToApply.push(map(row => Array.isArray(row) ? row.find(predicate) : [row].find(predicate)));
+                    this._queryOperatorsToApply.push(map(row => row.find(predicate)));
 
+                    // Access override of observables (query has used "find(...)")
                     if (createAccessOverride) {
                         for (let property of Queryable.accessedPropertiesAfterFind)
                             if (!resultObservable[property])
@@ -282,7 +283,9 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
                                     }
                                 })
                     }
-                }
+                } else
+                    resultObservable = resultObservable.pipe(map(data => data[0] ?? null));
+
 
                 return !this._shouldUseClientSideProcessing
                     ? resultObservable

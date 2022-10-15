@@ -15,6 +15,7 @@
 import {MovieResult} from '../models/api-models/movie-result';
 import {PersonResult} from '../models/api-models/person-result';
 import {AwardResult} from '../models/api-models/award-result';
+import {NewControllerDefinitions} from '../controllers/new-controller';
 import {Observable} from "rxjs";
 import {method, fromBody, fromUri} from "./library/miscellaneous";
 
@@ -53,6 +54,35 @@ export class MovieApiController {
 
     @method('GET')
     FaultyQueryMagical(): Observable<any[]> {
+        return [] as any;
+    }
+
+}
+
+export class NewController {
+
+    @method('GET')
+    Test(): Observable<string> {
+        return [] as any;
+    }
+
+    @method('GET')
+    TestTwo(): Observable<string> {
+        return [] as any;
+    }
+
+    @method('GET')
+    TestThree(): Observable<string> {
+        return [] as any;
+    }
+
+    @method('GET')
+    TestFour(): Observable<string> {
+        return [] as any;
+    }
+
+    @method('GET')
+    TestNine(): Observable<NewControllerDefinitions.Jack> {
         return [] as any;
     }
 

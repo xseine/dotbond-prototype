@@ -12,6 +12,7 @@ using System.Linq;
 using BondPrototype.Models;
 using Microsoft.Extensions.Logging;
 using BondPrototype.Controllers;
+using TestingBond.Controllers;
 
 namespace GeneratedControllers;
 
@@ -137,6 +138,39 @@ public class QueryImplementations : ControllerBase
         return movieApi.GetMoviesFromAYear((Int32) year, "").Value?.Where(movie => movie.Awards.Count != 0 && movie.Awards.Count == 0);
     }
 
+
+    public virtual IEnumerable<MyQueryType> MyQuery()
+    {
+        string returnVar;
+		string returnVar2;
+		
+        var @new = new NewController();
+
+        return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)?.Select(e => new MyQueryType {Value = e + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault()});
+    }
+
+
+    public virtual IEnumerable<MyQuery2Type> MyQuery2()
+    {
+        string returnVar;
+		string returnVar2;
+		
+        var @new = new NewController();
+
+        return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)?.Select(e => new MyQuery2Type {Value = e + " a " + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault()});
+    }
+
+
+    public virtual IEnumerable<MyQuery3Type> MyQuery3()
+    {
+        string returnVar;
+		string returnVar2;
+		
+        var @new = new NewController();
+
+        return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)?.Select(e => new MyQuery3Type {Value = e + " a " + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault()});
+    }
+
 }
 
 public class GetMovieListDetailsType
@@ -177,6 +211,21 @@ public class GetBiography2Type
 	public IEnumerable<string> Movies;
 }
 
+public class MyQueryType
+{
+    public string Value;
+}
+
+public class MyQuery2Type
+{
+    public string Value;
+}
+
+public class MyQuery3Type
+{
+    public string Value;
+}
+
 public class GetListOfActorNamesType
 {
     public string Name;
@@ -198,6 +247,23 @@ public class GetShortProfileAndWorkStatsType
 		public int Id;
 	}
 }
+
+public class MyQuery4Type
+{
+    public string ValueOne;
+	public IEnumerable<GeneratedControllers.MyQuery3Type> ValueTwo;
+}
+
+public class MyQuery5Type
+{
+    public string ValueOne;
+	public IEnumerable<GeneratedControllers.MyQuery3Type> ValueTwo;
+}
+
+
+
+
+
 
 
 

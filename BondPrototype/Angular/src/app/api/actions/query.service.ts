@@ -127,6 +127,33 @@ export class QueryService extends BaseEndpointsService {
         return this.ctx.MovieApi.GetMoviesFromAYear(year, '').filter(movie => movie.awards.length && !movie.awards.length).toListAsync();
     }
 
+    @customQuery
+    public MyQuery() {
+        return this.ctx.New.Test().map(e => ({value: e + this.ctx.New.TestTwo().find()})).toListAsync();
+    }
+
+    @customQuery
+    public MyQuery2() {
+        return this.ctx.New.Test().map(e => ({value: e + ' a ' + this.ctx.New.TestTwo().find()})).toListAsync();
+    }
+
+    @customQuery
+    public MyQuery3() {
+        return this.ctx.New.Test().map(e => ({value: e + ' a ' + this.ctx.New.TestTwo().find()})).toListAsync();
+    }
+
+
+    // as
+    @customQuery
+    public MyQuery4() {
+        return this.ctx.New.TestThree().map(e => ({valueOne: e + '24', valueTwo: this.MyQuery3()})).findAsync();
+    }
+
+    @customQuery
+    public MyQuery5() {
+        return this.ctx.New.TestFour().map(e => ({valueOne: e + '24', valueTwo: this.MyQuery3()})).findAsync();
+    }
+
 }
 
 

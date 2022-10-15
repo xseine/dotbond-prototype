@@ -10,7 +10,7 @@
 
 import {Observable} from 'rxjs';
 import {HttpClient} from '@angular/common/http';
-import {MovieApiController, TranslateDemoController} from "./controller-definitions";
+import {MovieApiController, NewController, TranslateDemoController} from "./controller-definitions";
 import {implementHttpCallsInController} from './library/miscellaneous';
 import {IQueryable} from './library/queryable';
 /**
@@ -36,6 +36,7 @@ export class BaseEndpointsService {
     }
     
     public MovieApi = new MovieApiController();
+	public New = new NewController();
 	public TranslateDemo = new TranslateDemoController();
 }
 
@@ -51,6 +52,7 @@ export class EndpointsContext {
     }
 
     public MovieApi = createQueryableController('MovieApi', new MovieApiController(), this.endpointsService);
+	public New = createQueryableController('New', new NewController(), this.endpointsService);
 	public TranslateDemo = createQueryableController('TranslateDemo', new TranslateDemoController(), this.endpointsService);
 }
 

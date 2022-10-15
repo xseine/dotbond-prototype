@@ -78,13 +78,15 @@ export function customQuery(target: any, propertyName: string, descriptor: Typed
     let accessedProperties = [...method.matchAll(/.find\(\w*\)\s*\??\.\s*(?<property>\w+)/g)].map(e => (e.groups as any)?.property);
     accessedProperties.filter(prop => !!prop).forEach(prop => Queryable.accessedPropertiesAfterFind.add(prop));
 
+    let argumentNames = getParams(method);
+
     let originalMethod = descriptor.value!;
 
     descriptor.value = function () {
         let argumentValues = [...arguments];
         stackOfCustomQueries.push({
             queryName: propertyName,
-            args: argumentValues.reduce((acc, curr, idx) => ({...acc, [`${propertyName}-param${idx}`]: curr}), {}), // argumentNames.map(argName => `${propertyName}-${argName}`).reduce((acc, curr, idx) => ({...acc, [curr]: argumentValues[idx]}), {}),
+            args: argumentNames.map(argName => `${propertyName}-${argName}`).reduce((acc, curr, idx) => ({...acc, [curr]: argumentValues[idx]}), {}),
             isUnmodified: lockedQueryService[propertyName] && lockedQueryService[propertyName]() === method
         });
 
@@ -141,9 +143,6 @@ export let latestResponseFirstActiveQuery: String | null = new String();
  */
 export function implementHttpCallsInController(controllerName: string, controller: any, http: HttpClient, serverAddress: string, isBaseController: boolean): void {
 
-    // Scenario of 
-    if (!serverAddress) return;
-
     let actions = Object.getOwnPropertyNames(Object.getPrototypeOf(controller)).filter(name => name !== 'constructor');
 
     for (let actionName of actions) {
@@ -199,7 +198,11 @@ export function implementHttpCallsInController(controllerName: string, controlle
                 queryUrls.length = 0;
 
             // let capturedForceClientSide = isQueryForcedClientSide;
-            let requestObs = cacheHit ? from(cacheHit) as Observable<any> : executeRequest(http, baseUrl, method, argumentObject, queryUrls.length ? {'bond-queries': queryUrls} : undefined, body);
+            let requestObs = cacheHit ? from(cacheHit) as Observable<any> : executeRequest(http, baseUrl, method, argumentObject, queryUrls.length ? {'bond-queries': queryUrls} : undefined, body)
+                .pipe(map(response => isCustomQuery ? {
+                    firstActiveQuery: response.headers.get('first-active-query'),
+                    body: Array.isArray(response.body) ? response.body : [response.body]
+                } as CustomQueryResponse : response));
 
             return requestObs.pipe(
                 tap(e => {
@@ -222,8 +225,7 @@ export function implementHttpCallsInController(controllerName: string, controlle
 /**
  * Single point of making http calls to the backend.
  */
-function executeRequest<THeaders extends { [p: string]: string | string[] }>(http: HttpClient, url: string, method: 'GET' | 'POST', parameters?: any, headers?: THeaders, body?: any)
-    : Observable<THeaders extends { 'bond-queries': any } ? CustomQueryResponse : any> {
+function executeRequest<THeaders extends { [p: string]: string | string[] }>(http: HttpClient, url: string, method: 'GET' | 'POST', parameters?: any, headers?: THeaders, body?: any) {
 
     let [controller, action] = url.split('/').slice(url.split('/').length - 2);
     let baseTypeDates = dateFieldsInReturnTypes[controller]?.[action];
@@ -242,22 +244,28 @@ function executeRequest<THeaders extends { [p: string]: string | string[] }>(htt
     parameters = Object.fromEntries(Object.entries(parameters).filter(([_, v]) => v != null));
     let request = method === 'GET' ? http.get(url, {params: parameters, headers, observe: 'response'}) : http.post(url, body, {params: parameters, headers, observe: 'response'})
 
-    return request.pipe(map(response => {
-
-        let body = response.body;
-        let firstActiveQuery = response.headers.get('first-active-query');
-
-        if (headers?.['bond-queries']) {
-            // TODO: handle data fields
-
-            return {firstActiveQuery, body} as CustomQueryResponse;
-        } else {
-            if (baseTypeDates)
-                body = Array.isArray(body) ? body.map(e => convertDateFields(e, baseTypeDates)) : convertDateFields(body, baseTypeDates);
-            return body;
-        }
-
-    })) as any;
+    return request.pipe(
+        map(response => baseTypeDates ? ({
+            ...response,
+            body: Array.isArray(response.body) ? response.body.map(e => convertDateFields(e, baseTypeDates)) : convertDateFields(response.body, baseTypeDates)
+        }) : response)
+    );
+    // .pipe(map(response => {
+    //
+    //     let body = response.body;
+    //     let firstActiveQuery = response.headers.get('first-active-query');
+    //
+    //     if (headers?.['bond-queries']) {
+    //         // TODO: handle data fields
+    //
+    //         return {firstActiveQuery, body} as CustomQueryResponse;
+    //     } else {
+    //         if (baseTypeDates)
+    //             body = Array.isArray(body) ? body.map(e => convertDateFields(e, baseTypeDates)) : convertDateFields(body, baseTypeDates);
+    //         return body;
+    //     }
+    //
+    // })) as any;
 }
 
 declare module 'rxjs/internal/Observable' {
@@ -287,6 +295,8 @@ Observable.prototype.asQueryable = function () {
     }))) as any;
 }
 
+export const EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER = 'observable';
+
 /**
  * Finds fields in the object that are Observables
  * and pipes them to replace the original field's value with its (Observable's) output value.
@@ -300,35 +310,77 @@ Observable.prototype.asQueryable = function () {
  * .pipe(tap(value => object.country = value))
  *
  */
-export function evaluateInnerObservables(object: any): Observable<any> {
+export function evaluateInnerObservables(object: any, operatorObservables: Observable<any>[]): Observable<any> {
+
+    if (typeof object === 'string') {
+        let matches = [...object.matchAll(new RegExp(EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER + '\\d+', 'g'))];
+
+        return combineLatest(...matches.map((match, idx) => ({
+                callback: (currentValue: string, observedValue: string) => object.replace(match[0], observedValue),
+                observable: operatorObservables[idx]
+            })
+        ).map(({callback, observable}) => observable.pipe(map(observedValue => ({value: observedValue, callback}))))).pipe(
+            map(callbacks => callbacks.reduce((acc, curr) => curr.callback(acc, curr.value), object as string)));
+    }
+
+    // return combineLatest(...entriesWithObservables.concat(entriesWithEmbeddedObservables)
+    //     .map(({callback, observable}) => observeForInnerObservables(observable).pipe(tap(value => callback(value))))).pipe(map(_ => object));
 
     let findObservablesInChildren = (parent: any) => {
 
-        let childrenObservables: { entry: any, index: any, observable: Observable<any> }[] = [];
+        // Observable value is assigned to the property "index" of the object "entry"
+        let childrenObservables: { callback: (observedValue: any) => void, observable: Observable<any> }[] = [];
 
-        for (let entry of Object.entries(parent)) {
-            if ((entry[1] as any)?.constructor.name === 'Observable')
-                childrenObservables.push({entry: parent, index: entry[0], observable: entry[1] as any});
-            else if ((entry[1] as any)?.constructor.name === 'Object')
-                childrenObservables = [...childrenObservables, ...findObservablesInChildren(entry[1])];
+
+        for (let [key, value] of Object.entries(parent)) {
+            if ((value as any)?.constructor.name === 'Observable')
+                childrenObservables.push({callback: observedValue => parent[key] = observedValue, observable: value as any});
+            else if ((value as any)?.constructor.name === 'Object')
+                childrenObservables = [...childrenObservables, ...findObservablesInChildren(value)];
+        }
+
+        return childrenObservables;
+    }
+
+    let findEmbeddedObservables = (parent: any): { callback: (observedValue: string) => void, observable: Observable<any> }[] => {
+
+        let childrenObservables: { callback: (observedValue: string) => void, observable: Observable<any> }[] = [];
+
+        for (let [key, value] of Object.entries(parent)) {
+            if (typeof value === 'string') {
+                let matches = [...value.matchAll(new RegExp(EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER + '\\d+', 'g'))].map(e => e[0]);
+
+                childrenObservables.push(...matches.map((match, idx) => ({
+                        callback: observedValue => parent[key] = parent[key].replace(match, observedValue),
+                        observable: operatorObservables[idx]
+                    }))
+                );
+
+            } else if ((value as any)?.constructor.name === 'Object')
+                childrenObservables = [...childrenObservables, ...findEmbeddedObservables(value)];
         }
 
         return childrenObservables;
     }
 
     let entriesWithObservables = findObservablesInChildren(object);
+    let entriesWithEmbeddedObservables = findEmbeddedObservables(object);
 
-    if (entriesWithObservables.length === 0) return of(object);
+    if (entriesWithObservables.length === 0 && entriesWithEmbeddedObservables.length === 0) return of(object);
 
     let observeForInnerObservables = (observable: Observable<any>) => observable.pipe(
         switchMap(value => {
             if (typeof value !== 'object') return of(value);
 
             let entriesWithObservables = findObservablesInChildren(value);
-            return entriesWithObservables.length === 0 ? of(value) : combineLatest(...entriesWithObservables.map(e => observeForInnerObservables(e.observable).pipe(tap(value => e.entry[e.index] = value)))).pipe(map(_ => value));
+            let entriesWithEmbeddedObservables = findEmbeddedObservables(value);
+            return entriesWithObservables.length === 0 && entriesWithEmbeddedObservables.length === 0
+                ? of(value)
+                : combineLatest(...entriesWithObservables.concat(entriesWithEmbeddedObservables).map(e => observeForInnerObservables(e.observable).pipe(tap(value => e.callback(value))))).pipe(map(_ => value));
         }))
 
-    return combineLatest(...entriesWithObservables.map(e => observeForInnerObservables(e.observable).pipe(tap(value => e.entry[e.index] = value)))).pipe(map(_ => object));
+    return combineLatest(...entriesWithObservables.concat(entriesWithEmbeddedObservables)
+        .map(({callback, observable}) => observeForInnerObservables(observable).pipe(tap(value => callback(value))))).pipe(map(_ => object));
 }
 
 type Increment<N extends number> = [

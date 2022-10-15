@@ -21,7 +21,7 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
     querySelection$: Observable<BenchmarkResult[]>;
     queryPick = new Subject<string>();
     queryRemoval = new Subject<number>();
-    queryBenchmarkRun = new Subject<BenchmarkResult>();
+    queryBenchmarkRunClicked = new Subject<BenchmarkResult>();
     rowMove = new Subject<[number, number]>();
 
     paramsForm: FormGroup;
@@ -53,8 +53,8 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
             switchMap(query => query.paramNames
                 ? this.getParamsFromDialog(query.paramNames).pipe(filter(e => !!e), map(params => ({id: query.id, name: query.name, params})))
                 : of({id: query.id, name: query.name})),
-            mergeWith(this.queryBenchmarkRun.pipe(map(query => ({...query, isRunning: true})))),
-            mergeWith(this.queryBenchmarkRun.pipe(mergeScan((_, query) => this.runBenchmark(query).pipe(map(query => ({...query, isRunning: false}))), 0 as any))),
+            mergeWith(this.queryBenchmarkRunClicked.pipe(map(query => ({...query, isRunning: true})))),
+            mergeWith(this.queryBenchmarkRunClicked.pipe(mergeScan((_, query) => this.runBenchmark(query).pipe(map(query => ({...query, isRunning: false}))), 0 as any))),
             mergeWith(this.queryRemoval.pipe(map(id => ({id, remove: true})))),
             scan((acc, curr) => {
 
@@ -105,7 +105,7 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
                     let startTime = performance.now();
                     (this._api[queryToRun.name] as any).forceClientSide = queryToRun.isClientSide; // clears on its own
                     let httpObservable: Observable<any> = parameters ? this._api[queryToRun.name](...Object.values(parameters)) : this._api[queryToRun.name]();
-                    return httpObservable.pipe(map(_ => performance.now() - startTime));
+                    return httpObservable.pipe(tap(e => console.log(e)), map(_ => performance.now() - startTime));
                 })
             ))
         ).pipe(

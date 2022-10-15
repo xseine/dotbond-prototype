@@ -8,9 +8,7 @@ import {IActorShortProfile} from '../../actors/components/actor-short-profile/ac
 import './library/dates/date-extend';
 import './library/arrays/array-extend';
 
-@Injectable({
-    providedIn: 'root'
-})
+
 export class QueryServiceLock {
 
     private ctx: any;
@@ -105,6 +103,33 @@ export class QueryServiceLock {
     @lockedQuery
     public AnotherOne(year: number) {
         return this.ctx.MovieApi.GetMoviesFromAYear(year, '').filter(movie => movie.awards.length && !movie.awards.length).toListAsync();
+    }
+
+    @lockedQuery
+    public MyQuery() {
+        return this.ctx.New.Test().map(e => ({value: e + this.ctx.New.TestTwo().find()})).toListAsync();
+    }
+
+    @lockedQuery
+    public MyQuery2() {
+        return this.ctx.New.Test().map(e => ({value: e + ' a ' + this.ctx.New.TestTwo().find()})).toListAsync();
+    }
+
+    @lockedQuery
+    public MyQuery3() {
+        return this.ctx.New.Test().map(e => ({value: e + ' a ' + this.ctx.New.TestTwo().find()})).toListAsync();
+    }
+
+
+    // as
+    @lockedQuery
+    public MyQuery4() {
+        return this.ctx.New.TestThree().map(e => ({valueOne: e + '24', valueTwo: this.MyQuery3()})).findAsync();
+    }
+
+    @lockedQuery
+    public MyQuery5() {
+        return this.ctx.New.TestFour().map(e => ({valueOne: e + '24', valueTwo: this.MyQuery3()})).findAsync();
     }
 
 }

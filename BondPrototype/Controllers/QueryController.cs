@@ -51,4 +51,16 @@ public class QueryController : QueryImplementations
     public override IEnumerable<MovieResult> AnotherOne(decimal year) => base.AnotherOne(year);
 
 
+	[HttpGet]
+    public override IEnumerable<MyQueryType> MyQuery() => base.MyQuery();
+
+
+	[HttpGet]
+    public override IEnumerable<MyQuery2Type> MyQuery2() => base.MyQuery2();
+
+
+	[HttpGet]
+    public override IEnumerable<MyQuery3Type> MyQuery3() => base.MyQuery3();
+
+
 }

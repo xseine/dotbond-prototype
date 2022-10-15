@@ -8,7 +8,7 @@
 //------------------------------------------------------------------------------
 
 import {combineLatest, map, Observable, of, OperatorFunction, switchMap, tap} from 'rxjs';
-import {accessUsingPath, evaluateInnerObservables, PrimitiveKey, queryInstanceId, sortAscCmp, sortDescCmp} from './miscellaneous';
+import {accessUsingPath, EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER, evaluateInnerObservables, PrimitiveKey, queryInstanceId, sortAscCmp, sortDescCmp} from './miscellaneous';
 
 type InferTElement<T> = (T extends (infer TElement)[] ? TElement : T);
 
@@ -116,13 +116,13 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
 
     // Query context to apply to possible subqueries
     private readonly _queryInstanceId: number;
-    
+
     /**
-     * 
+     *
      * @param mainObservable If a function, operators are not applied internally, instead they are provided as parameters so the code instantiating the Observable can use them.
      */
-    constructor(mainObservable: Observable<{result: any, shouldUseClientSideProcessing: boolean}>) {
-        
+    constructor(mainObservable: Observable<{ result: any, shouldUseClientSideProcessing: boolean }>) {
+
         this._mainObservable = mainObservable.pipe(map(({result, shouldUseClientSideProcessing}) => {
             this._shouldUseClientSideProcessing = shouldUseClientSideProcessing;
             return result;
@@ -132,17 +132,28 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
     }
 
     map<TResult>(selector: (input: InferTElement<T>) => TResult): IQueryable<TResult[]> {
+
+        // Handle operations using "toString" override
+        let originalToString = Observable.prototype.toString;
+        let operatorObservables: Observable<any>[] = [];
+        let overridenToString = function (this: any) {
+            operatorObservables.push(this);
+            return EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER + operatorObservables.length;
+        };
+
         this._queryOperatorsToApply.push(
-            map(row => row.map(selector)),
-            switchMap(data => combineLatest(data.map(e => evaluateInnerObservables(e))))
+            tap(_ => Observable.prototype.toString = overridenToString),
+            map(row => row.map(selector)),                                  // Apply the map
+            tap(_ => Observable.prototype.toString = originalToString),     // Restore original "toString"
+            switchMap(data => combineLatest(data.map(e => evaluateInnerObservables(e, operatorObservables))))
         );
-        
+
         return this as any;
     }
 
     filter(predicate: any): IQueryable<T> {
         this._queryOperatorsToApply.push(map(row => row.filter(predicate) as T));
-        
+
         return this as any;
     }
 
@@ -150,10 +161,10 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
         if (indexes.length)
             indexes.forEach(index => key = (key as string).replace('%d', index.toString()) as any);
 
-        this._queryOperatorsToApply.push(key 
+        this._queryOperatorsToApply.push(key
             ? map(row => row.sort((a, b) => sortAscCmp(accessUsingPath(a, key as string), accessUsingPath(b, key as string))))
             : map(row => row.sort((a, b) => a - b)))
-        
+
         return this as any;
     }
 
@@ -232,9 +243,9 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
         return this.findPrivate(predicate, true);
     }
 
-    toList(): T { 
+    toList(): T {
         return this._mainObservable.pipe(
-            switchMap(data => !this._shouldUseClientSideProcessing 
+            switchMap(data => !this._shouldUseClientSideProcessing
                 ? of(data)
                 : of(data).pipe(
                     tap(_ => queryInstanceId.id = this._queryInstanceId),
@@ -257,11 +268,12 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
             switchMap(data => {
 
                 let resultObservable = of(data);
-                
+
                 if (this._shouldUseClientSideProcessing) {
                     predicate ??= _ => true;
-                    this._queryOperatorsToApply.push(map(row => Array.isArray(row) ? row.find(predicate) : [row].find(predicate)));
-                    
+                    this._queryOperatorsToApply.push(map(row => row.find(predicate)));
+
+                    // Access override of observables (query has used "find(...)")
                     if (createAccessOverride) {
                         for (let property of Queryable.accessedPropertiesAfterFind)
                             if (!resultObservable[property])
@@ -271,8 +283,10 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
                                     }
                                 })
                     }
-                }
-                
+                } else
+                    resultObservable = resultObservable.pipe(map(data => data[0] ?? null));
+
+
                 return !this._shouldUseClientSideProcessing
                     ? resultObservable
                     : resultObservable.pipe(
@@ -281,6 +295,6 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
                         tap(_ => queryInstanceId.id = null));
             })
         ) as any;
-        
+
     }
 }
