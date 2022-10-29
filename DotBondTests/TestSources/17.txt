@@ -1,0 +1,47 @@
+using System;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
+
+var lp = new LogParser();
+Console.WriteLine(lp.IsValidLine("[ERR] A good error here"));
+Console.WriteLine(lp.IsValidLine("Any old [ERR] text"));
+Console.WriteLine(lp.IsValidLine("[BOB] Any old text"));
+
+Console.WriteLine(lp.SplitLogLine("Section 1<===>Section 2<^-^>Section 3"));
+Console.WriteLine(lp.RemoveEndOfLineText("[INF] end-of-line23033 Network Failure end-of-line27"));
+Console.WriteLine(lp.ListLinesWithPasswords(new string[] {"my passwordsecret is great"}));
+Console.WriteLine(lp.ListLinesWithPasswords(new string[] {"my password secret"}));
+
+public class LogParser
+{
+    public bool IsValidLine(string text) => Regex.IsMatch(text, validLineRegexPattern);
+    public string[] SplitLogLine(string text) => Regex.Split(text, splitLineRegexPattern);
+    public int CountQuotedPasswords(string lines) => Regex.Matches(lines, quotedPasswordRegexPattern, RegexOptions.IgnoreCase).Count;
+    public string RemoveEndOfLineText(string line) => Regex.Replace(line, endOfLineRegexPattern, string.Empty);
+
+    public string[] ListLinesWithPasswords(string[] lines)
+    {
+        var processedLines = new List<string>();
+        foreach (string line in lines)
+        {
+            Match passwordMatch = Regex.Match(line, weakPasswordRegexPattern, RegexOptions.IgnoreCase);
+            var a = passwordMatch.Groups["asd"].Value;
+            if (passwordMatch == Match.Empty)
+                processedLines.Add($"--------: {line}");
+            else
+                processedLines.Add($"{passwordMatch.Value}: {line}");
+        }
+
+        return processedLines.ToArray();
+    }
+
+    #region Fixed values
+
+    private readonly string validLineRegexPattern = @"^\[(TRC|DBG|INF|WRN|ERR|FTL)\]";
+    private readonly string splitLineRegexPattern = @"<[\^*=-]+>";
+    private readonly string quotedPasswordRegexPattern = @""".*password.*""";
+    private readonly string endOfLineRegexPattern = @"end-of-line\d+";
+    private readonly string weakPasswordRegexPattern = @"password\w+";
+
+    #endregion
+}

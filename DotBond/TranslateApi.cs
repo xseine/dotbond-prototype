@@ -74,7 +74,7 @@ namespace DotBond
             if (parsedTree.ChildNodes().Any(e => e is NamespaceDeclarationSyntax or FileScopedNamespaceDeclarationSyntax) == false)
             {
                 var typeDeclarations = parsedTree.ChildNodes().Where(e =>
-                        e.IsKind(SyntaxKind.ClassDeclaration) || e.IsKind(SyntaxKind.StructDeclaration) || e.IsKind(SyntaxKind.RecordDeclaration) || e.IsKind(SyntaxKind.EnumDeclaration)).ToList();
+                    e.IsKind(SyntaxKind.ClassDeclaration) || e.IsKind(SyntaxKind.StructDeclaration) || e.IsKind(SyntaxKind.RecordDeclaration) || e.IsKind(SyntaxKind.EnumDeclaration)).ToList();
 
                 if (typeDeclarations.Any())
                 {
@@ -92,6 +92,9 @@ namespace DotBond
                 }
             }
 
+            // Remove "#region" trivia
+            parsedTree = parsedTree.ReplaceTrivia(parsedTree.DescendantTrivia().Where(e => e.Kind() is SyntaxKind.RegionDirectiveTrivia or SyntaxKind.EndRegionDirectiveTrivia),
+                (_, _) => SyntaxFactory.Whitespace(""));
             return (parsedTree.ToFullString(), rewriter.ImportedSymbols, rewriter.Attributes);
         }
     }

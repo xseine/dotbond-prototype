@@ -164,6 +164,8 @@ public partial class Rewriter
         }
         else
         {
+            var iifeVarName = "obj";
+            
             var statements = new SyntaxList<SyntaxNode>();
             var a = typeSymbol == null || !typeSymbol.DeclaringSyntaxReferences.Any()
                 ? SyntaxFactory.ParseExpression(" {} as any")
@@ -173,7 +175,7 @@ public partial class Rewriter
             var newLocalDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
                 SyntaxFactory.IdentifierName("let").WithLeadingTrivia(fieldLeadingTrivia).WithTrailingTrivia(SyntaxFactory.Space),
                 new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(
-                    SyntaxFactory.VariableDeclarator(SyntaxFactory.Identifier("__ret "), null,
+                    SyntaxFactory.VariableDeclarator(SyntaxFactory.Identifier($"{iifeVarName} "), null,
                         SyntaxFactory.EqualsValueClause(a)))));
 
             statements = statements.Add(newLocalDeclaration);
@@ -188,12 +190,12 @@ public partial class Rewriter
                 // Prepend "__ret." to assignment
                 assignmentExpressionSyntax = assignmentExpressionSyntax.WithLeft(
                     assignmentExpressionSyntax.Left.WithLeadingTrivia(assignmentExpressionSyntax.Left.GetLeadingTrivia()
-                        .Append("__ret" + (assignmentExpressionSyntax.Left.IsKind(SyntaxKind.ImplicitElementAccess) ? "" : "."))));
+                        .Append(iifeVarName + (assignmentExpressionSyntax.Left.IsKind(SyntaxKind.ImplicitElementAccess) ? "" : "."))));
 
                 statements = statements.Add(SyntaxFactory.ExpressionStatement(assignmentExpressionSyntax.WithoutTrailingTrivia()).WithTrailingTrivia(trailingTrivias[idx++]));
             }
 
-            var returnStatement = SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName(" __ret"))
+            var returnStatement = SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName($" {iifeVarName}"))
                 .WithLeadingTrivia(fieldLeadingTrivia); //.WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
 
             statements = statements.Add(returnStatement);

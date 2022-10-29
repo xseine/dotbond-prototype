@@ -202,7 +202,7 @@ export function implementHttpCallsInController(controllerName: string, controlle
                 .pipe(map(response => isCustomQuery ? {
                     firstActiveQuery: response.headers.get('first-active-query'),
                     body: Array.isArray(response.body) ? response.body : [response.body]
-                } as CustomQueryResponse : response));
+                } as CustomQueryResponse : response.body));
 
             return requestObs.pipe(
                 tap(e => {

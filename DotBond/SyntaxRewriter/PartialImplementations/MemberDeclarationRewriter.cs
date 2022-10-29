@@ -93,8 +93,8 @@ public partial class Rewriter
             SyntaxFactory.Identifier(field.Identifier.Text + ": " + TypeTranslation.ParseType(node.Declaration.Type, SemanticModel)));
 
         // No "const" on fields in TS, but use static if parent is static
-        var isClassStatic = ((ClassDeclarationSyntax)node.Parent).Modifiers.Any(e => e.IsKind(SyntaxKind.StaticKeyword));
-        var modifiers = isClassStatic
+        var isTypeStatic = ((TypeDeclarationSyntax)node.Parent).Modifiers.Any(e => e.IsKind(SyntaxKind.StaticKeyword));
+        var modifiers = isTypeStatic
             ? SyntaxFactory.TokenList(overrideVisit.Modifiers.Select(e => e.IsKind(SyntaxKind.ConstKeyword) ? CreateToken(SyntaxKind.StaticKeyword, "static ") : e))
             : SyntaxFactory.TokenList(overrideVisit.Modifiers.Where(e => !e.IsKind(SyntaxKind.ConstKeyword)));
 
@@ -120,9 +120,21 @@ public partial class Rewriter
 
         if (overrideVisit.ExpressionBody != null)
         {
-            overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
-                .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
-                .WithLeadingTrivia(SyntaxFactory.CarriageReturnLineFeed, leadingTrivia, leadingTrivia)));
+            var lTrivia = leadingTrivia.IsKind(SyntaxKind.None)
+                ? SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed)
+                : SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed, leadingTrivia, leadingTrivia);
+            
+            // If return type method with expression body is "void", don't use return statement.
+            if (node.ReturnType is PredefinedTypeSyntax {Keyword.Text: "void"})
+                overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
+                .ExpressionStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
+                .WithLeadingTrivia(lTrivia)));
+            else
+                overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
+                    .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
+                    .WithLeadingTrivia(lTrivia)));
+
+
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
 

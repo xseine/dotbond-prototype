@@ -96,6 +96,11 @@ public partial class Rewriter
         var parsedType = overrideVisit.Type != null ? TypeTranslation.ParseType(overrideVisit.Type, SemanticModel) : null;
         var identifier = SyntaxFactory.Identifier(overrideVisit.Identifier + (parsedType != null ? ": " + parsedType : null));
         GetSymbolsFromTypeSyntax(node.Type!);
+
+        if (overrideVisit.Modifiers.Any(e => e.IsKind(SyntaxKind.ParamsKeyword)))
+            overrideVisit = overrideVisit.WithModifiers(overrideVisit.Modifiers.Replace(overrideVisit.Modifiers.First(e => e.IsKind(SyntaxKind.ParamsKeyword)),
+                CreateToken(SyntaxKind.ParamsKeyword, "...")));
+
         return overrideVisit.WithIdentifier(identifier).WithType(null).WithTrailingTrivia(SyntaxFactory.Space);
     }
 

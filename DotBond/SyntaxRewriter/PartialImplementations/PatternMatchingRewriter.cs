@@ -238,19 +238,17 @@ public partial class Rewriter
 
     private static ExpressionSyntax HandleRelationalPattern(RelationalPatternSyntax relational, IsPatternExpressionSyntax overrideVisit)
     {
-        ExpressionSyntax resultExpression;
         var expressionKind = relational.OperatorToken.IsKind(SyntaxKind.LessThanToken)
             ? SyntaxKind.LessThanExpression
-            : relational.OperatorToken.IsKind(SyntaxKind.LessThanOrEqualExpression)
+            : relational.OperatorToken.IsKind(SyntaxKind.LessThanEqualsToken)
                 ? SyntaxKind.LessThanOrEqualExpression
                 : relational.OperatorToken.IsKind(SyntaxKind.GreaterThanToken)
                     ? SyntaxKind.GreaterThanExpression
                     : relational.OperatorToken.IsKind(SyntaxKind.GreaterThanEqualsToken)
                         ? SyntaxKind.GreaterThanOrEqualExpression
-                        : default;
+                        : throw new Exception("Unhandled Token in Relational pattern");
 
-        resultExpression = SyntaxFactory.BinaryExpression(expressionKind, overrideVisit.Expression, relational.Expression);
-        return resultExpression;
+        return SyntaxFactory.BinaryExpression(expressionKind, overrideVisit.Expression, relational.Expression);
     }
 
 

@@ -272,7 +272,8 @@ export namespace {nodeName} {{
 
     private TypeDeclarationSyntax HandleOverloads(TypeDeclarationSyntax node, TypeDeclarationSyntax overrideVisit)
     {
-        var tsOverloads = overrideVisit.DescendantNodes().OfType<MethodDeclarationSyntax>().GroupBy(e => e.Identifier.Text, e => (BaseMethodDeclarationSyntax)e).Where(e => e.Count() > 1).ToList();
+        var tsOverloads = overrideVisit.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(e => e.ReturnType is not IdentifierNameSyntax id || id.Identifier.Text.Trim() is not "get" or "set")
+            .GroupBy(e => e.Identifier.Text, e => (BaseMethodDeclarationSyntax)e).Where(e => e.Count() > 1).ToList();
 
         if (overrideVisit.DescendantNodes().OfType<ConstructorDeclarationSyntax>().Count() > 1)
             tsOverloads.Insert(0, overrideVisit.DescendantNodes().OfType<ConstructorDeclarationSyntax>().GroupBy(e => e.Identifier.Text).First());
@@ -356,9 +357,9 @@ export namespace {nodeName} {{
                             null,
                             null),
                         SyntaxFactory.InvocationExpression(
-                            SyntaxFactory.IdentifierName("this." + (isConstructorDeclaration 
-                                ? "constructor"
-                                : (string)CamelCaseConversion.LowercaseWord(((dynamic)csOverload).Identifier))
+                            SyntaxFactory.IdentifierName("this." + (isConstructorDeclaration
+                                                                     ? "constructor"
+                                                                     : (string)CamelCaseConversion.LowercaseWord(((dynamic)csOverload).Identifier))
                                                                  + (idx + (wasParameterlessConstructorAddedInOverride ? 1 : 0))),
                             CreateArgumentList(compositeDeclarations.Select(e => SyntaxFactory.IdentifierName(e.Name.Replace("?", ""))).ToArray()))).WithLeadingTrivia(leadingTrivia + "\t")));
 
@@ -420,7 +421,7 @@ export namespace {nodeName} {{
     {
         var returnType = node.Type;
         var parameterList = node.ParameterList;
-        var methodName = returnType.GetText().ToString() == ((ClassDeclarationSyntax)node.Parent).Identifier.Text
+        var methodName = returnType.GetText().ToString() == ((TypeDeclarationSyntax)node.Parent).Identifier.Text
             ? $"From{parameterList.Parameters.First().Type.GetText()}"
             : $"To{returnType.GetText()}";
         var overrideBody = node.Body != null ? VisitBlock(node.Body) as BlockSyntax : null;

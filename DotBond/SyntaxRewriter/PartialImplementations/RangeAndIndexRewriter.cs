@@ -56,10 +56,16 @@ public partial class Rewriter
         return node;
     }
 
-    // public override SyntaxNode VisitElementAccessExpression(ElementAccessExpressionSyntax node)
-    // {
-    //     var overrideVisit = (ElementAccessExpressionSyntax)base.VisitElementAccessExpression(node);
-    //     
-    //     if (overrideVisit.ArgumentList.)
-    // }
+    public override SyntaxNode VisitElementAccessExpression(ElementAccessExpressionSyntax node)
+    {
+        var typeSymbol = GetSavedSymbol(node.Expression) ?? (SemanticModel.SyntaxTree.GetRoot().Contains(node.Expression) ? SemanticModel.GetTypeInfo(node.Expression).Type : null);
+
+        if (typeSymbol.Name == "GroupCollection")
+        {
+            var overrideVisit = (ElementAccessExpressionSyntax)base.VisitElementAccessExpression(node);
+            return overrideVisit.WithArgumentList(overrideVisit.ArgumentList.WithOpenBracketToken(CreateToken(SyntaxKind.OpenBracketToken, "?.[")));
+        }
+
+        return base.VisitElementAccessExpression(node);
+    }
 }

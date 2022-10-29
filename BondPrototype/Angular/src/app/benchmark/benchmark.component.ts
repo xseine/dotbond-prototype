@@ -105,7 +105,10 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
                     let startTime = performance.now();
                     (this._api[queryToRun.name] as any).forceClientSide = queryToRun.isClientSide; // clears on its own
                     let httpObservable: Observable<any> = parameters ? this._api[queryToRun.name](...Object.values(parameters)) : this._api[queryToRun.name]();
-                    return httpObservable.pipe(tap(e => console.log(e)), map(_ => performance.now() - startTime));
+                    return httpObservable.pipe(
+                        // tap(e => console.log(e)),
+                        map(_ => performance.now() - startTime)
+                    );
                 })
             ))
         ).pipe(
@@ -135,10 +138,10 @@ export class BenchmarkComponent implements OnInit, IComponentHeaderText {
         let parameters = getParams(methodDefinition);
 
         if (!parameters.length) return null;
-        
+
         if (this._environment.production)
             parameters = parameters.map((_, idx) => `param${idx}`)
-        
+
         return parameters
     }
 
