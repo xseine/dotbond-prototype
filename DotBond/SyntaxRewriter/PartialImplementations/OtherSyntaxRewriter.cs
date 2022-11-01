@@ -93,7 +93,7 @@ public partial class Rewriter
     public override SyntaxNode VisitParameter(ParameterSyntax node)
     {
         var overrideVisit = (ParameterSyntax)base.VisitParameter(node)!;
-        var parsedType = overrideVisit.Type != null ? TypeTranslation.ParseType(overrideVisit.Type, SemanticModel) : null;
+        var parsedType = overrideVisit.Type != null ? overrideVisit.Type.IsKind(SyntaxKind.TupleType) ? overrideVisit.Type.ToString() : TypeTranslation.ParseType(overrideVisit.Type, SemanticModel) : null;
         var identifier = SyntaxFactory.Identifier(overrideVisit.Identifier + (parsedType != null ? ": " + parsedType : null));
         GetSymbolsFromTypeSyntax(node.Type!);
 
@@ -110,7 +110,22 @@ public partial class Rewriter
         var overrideVisit = (LocalFunctionStatementSyntax)base.VisitLocalFunctionStatement(node);
         if (overrideVisit.ExpressionBody != null)
         {
-            overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(overrideVisit.ExpressionBody.Expression)));
+            var leadingTrivia = overrideVisit.GetLeadingTrivia().LastOrDefault();
+            var lTrivia = leadingTrivia.IsKind(SyntaxKind.None)
+                ? SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed)
+                : SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed, leadingTrivia, leadingTrivia);
+
+            // If return type method with expression body is "void", don't use return statement.
+            if (node.ReturnType is PredefinedTypeSyntax { Keyword.Text: "void" })
+                overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
+                    .ExpressionStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
+                    .WithLeadingTrivia(lTrivia)));
+            else
+                overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
+                    .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
+                    .WithLeadingTrivia(lTrivia)));
+
+
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
 
@@ -154,6 +169,14 @@ public partial class Rewriter
                         SyntaxFactory.IdentifierName("Math"), SyntaxFactory.IdentifierName("floor")),
                     SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[] { SyntaxFactory.Argument(overrideVisit) })));
             }
+        }
+
+        if (node.IsKind(SyntaxKind.CoalesceExpression))
+        {
+            var overrideVisit = (BinaryExpressionSyntax)base.VisitBinaryExpression(node);
+            if (overrideVisit.Right is ThrowExpressionSyntax @throw)
+                return overrideVisit.WithRight(CreateIIFE(@throw.GetLeadingTrivia(), SyntaxFactory.Block(SyntaxFactory.ThrowStatement(@throw.Expression)),
+                    @throw.GetTrailingTrivia()));
         }
 
         return base.VisitBinaryExpression(node);
@@ -341,7 +364,7 @@ public partial class Rewriter
                 throwTrue.GetTrailingTrivia()));
 
         if (overrideVisit.WhenFalse is ThrowExpressionSyntax throwFalse)
-            overrideVisit = overrideVisit.WithWhenTrue(CreateIIFE(throwFalse.GetLeadingTrivia(), SyntaxFactory.Block(SyntaxFactory.ThrowStatement(throwFalse.Expression)),
+            overrideVisit = overrideVisit.WithWhenFalse(CreateIIFE(throwFalse.GetLeadingTrivia(), SyntaxFactory.Block(SyntaxFactory.ThrowStatement(throwFalse.Expression)),
                 throwFalse.GetTrailingTrivia()));
 
         return overrideVisit;

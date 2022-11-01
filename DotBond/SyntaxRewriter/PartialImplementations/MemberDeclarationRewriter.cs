@@ -138,14 +138,14 @@ public partial class Rewriter
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
 
-        var parsedReturnType = TypeTranslation.ParseType(node.ReturnType, SemanticModel) + " ";
+        var parsedReturnType = node.ReturnType.IsKind(SyntaxKind.TupleType) ? overrideVisit.ReturnType.ToString() + "" : TypeTranslation.ParseType(node.ReturnType, SemanticModel) + " ";
 
         overrideVisit = overrideVisit
             .WithReturnType(SyntaxFactory.ParseTypeName(""))
             .WithLeadingTrivia(leadingTrivia)
             .WithoutTrailingTrivia()
             .WithParameterList(overrideVisit.ParameterList.WithCloseParenToken(
-                SyntaxFactory.Token(default, SyntaxKind.CloseParenToken, "): " + parsedReturnType, "): " + parsedReturnType, default)))
+                CreateToken(SyntaxKind.CloseParenToken, parsedReturnType != null ? "): " + parsedReturnType : ") ")))
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)).WithTrailingTrivia(trailingTrivia)
             .ChangeIdentifierToCamelCase();
 

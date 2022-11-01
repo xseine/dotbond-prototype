@@ -39,7 +39,7 @@ public static class KnownObjectsRewrites
         if (typeName == "List")
         {
             var tsType = TypeTranslation.ParseType(node.Type, rewriter.SemanticModel);
-            var newExpression = $"[] as {tsType}";
+            var newExpression = string.IsNullOrEmpty(tsType) ? "[]" : $"[] as {tsType}";
 
             // var needsBraces = !node.Parent.IsKind(SyntaxKind.EqualsValueClause);
             // if (needsBraces)

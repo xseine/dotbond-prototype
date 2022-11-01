@@ -1,80 +1,35 @@
-﻿export class RemoteControlCar {
-    private _batteryPercentage: number = 100;
-    private _distanceDrivenInMeters: number = 0;
-    private _sponsors: string[] = [] as string[];
-    private _latestSerialNum: number = 0;
+﻿export class Change {
+    public static findFewestCoins(coins: number[], change: number): number[] {
+        if (change < 0) throw "Change cannot be negative.";
+        if (change > 0 && change < Math.min(...coins)) throw "Change cannot be less than minimal coin value.";
 
-    public drive(): void {
-        if (this._batteryPercentage > 0) {
-            this._batteryPercentage -= 10;
-            this._distanceDrivenInMeters += 2;
+        let a = [] as number[];
+
+        return [...Array(change + 1).keys()].slice(1).reduce(UpdateFewestCoinsForChange, (() => {
+            let obj = {} as any;
+            obj[0] = [];
+            return obj;
+        })())[change] ?? (() => {
+            throw 'change';
+        })();
+
+        function UpdateFewestCoinsForChange(current: { [key: number]: number[] }, subChange: number) {
+            let a = current[2];
+
+            let fewestCoins = FewestCoinsForChange(current, subChange);
+            if (fewestCoins != null)
+                current[subChange] = fewestCoins;
+            return current;
         }
-    };
 
-    public setSponsors(...sponsors: string[]): void {
-        this._sponsors = sponsors;
-    };
-
-    public displaySponsor(sponsorNum: number): string {
-        return this._sponsors[sponsorNum];
-    };
-
-    public getTelemetryData(
-    serialNum: number
-,
-    batteryPercentage: number
-,
-    distanceDrivenInMeters: number
-):
-    boolean {
-    if(this
-
-.
-    _latestSerialNum
->
-    serialNum
-) {
-    serialNum = this._latestSerialNum;
-    batteryPercentage = -1;
-    distanceDrivenInMeters = -1;
-    return
-    false;
-}
-
-this._latestSerialNum = serialNum;
-batteryPercentage = this._batteryPercentage;
-distanceDrivenInMeters = this._distanceDrivenInMeters;
-return true;
-}
-;
-public static
-buy()
-:
-RemoteControlCar
-{
-    return new RemoteControlCar();
-}
-;
-}
-
-export class TelemetryClient {
-    private _car: RemoteControlCar;
-
-    public constructor(car: RemoteControlCar) {
-        this._car = car;
-    }
-
-    public getBatteryUsagePerMeter(serialNum: number): string {
-        let data = this._car.getTelemetryData(ref
-        serialNum, out
-        int
-        batteryPercentage, out
-        int
-        distanceDrivenInMeters
-    )
-        ;
-        if (distanceDrivenInMeters > 0 && data)
-            return `usage-per-meter=${Math.floor((100 - batteryPercentage) / distanceDrivenInMeters)}`;
-        return "no data";
+        function FewestCoinsForChange(current: { [key: number]: number[] }, subChange: number) {
+            return coins.filter(coin => coin <= subChange)
+                .map(coin => (current[subChange - coin] ?? [1])?.Prepend(coin).ToArray())
+                .filter(fewestCoins => fewestCoins != null)
+                .sort((a, b) => a.length - b.length).find(_ => true);
+        };
     };
 }
+
+console.log(Change.findFewestCoins([1, 5, 10, 25, 100], 15));
+console.log(Change.findFewestCoins([1, 5, 10, 25, 100], 40));

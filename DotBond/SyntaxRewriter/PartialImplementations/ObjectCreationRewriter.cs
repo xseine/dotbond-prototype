@@ -260,8 +260,8 @@ public partial class Rewriter
     public override SyntaxNode VisitImplicitObjectCreationExpression(ImplicitObjectCreationExpressionSyntax node)
     {
         var typeSymbol = ((IMethodSymbol)ModelExtensions.GetSymbolInfo(SemanticModel, node).Symbol).ContainingType;
-        var typeSyntax = SyntaxFactory.ParseTypeName(typeSymbol.Name);
-
+        var typeSyntax = SyntaxFactory.ParseTypeName(typeSymbol.ToMinimalDisplayString(SemanticModel, 0));
+        
         if (typeSymbol.DeclaringSyntaxReferences.Any())
             ImportedSymbols.Add(typeSymbol);
 

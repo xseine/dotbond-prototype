@@ -21,6 +21,19 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
     public override SyntaxNode VisitConditionalAccessExpression(ConditionalAccessExpressionSyntax node)
     {
+        TryGetSavedSymbolsToUse(node);
+        var memberBinding = node.DescendantNodes().OfType<MemberBindingExpressionSyntax>().Last();
+        var nonConditionalAccess = node.WhenNotNull.ReplaceNode(memberBinding,
+            SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, node.Expression, CreateToken(SyntaxKind.DotToken, "?."), memberBinding.Name));
+        var overrideVisit = base.Visit(nonConditionalAccess);
+        ClearSavedSymbols();
+
+        return overrideVisit;
+    }
+
+    public override SyntaxNode VisitMemberBindingExpression(MemberBindingExpressionSyntax node)
+    {
+        // TODO: HANDLE THIS
         return VisitAccessExpression(node);
     }
 
@@ -71,6 +84,10 @@ public partial class Rewriter : AbstractRewriterWithSemantics
             {
                 WhenNotNull: MemberBindingExpressionSyntax memberBinding
             } => memberBinding.Name.ToString(),
+            ConditionalAccessExpressionSyntax
+            {
+                WhenNotNull: InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax memberAccess }
+            } => memberAccess.Name.ToString(),
             _ => throw new ArgumentOutOfRangeException(nameof(node), node, null)
         };
 
@@ -79,6 +96,9 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
         // New name for the method to, e.g. "toString"
         string newMethodName = null;
+
+        if (newMethodName == "Prepend")
+            Console.WriteLine();
 
         switch (containingNamespace)
         {
@@ -133,6 +153,14 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                     case nameof(List<object>.Find):
                     {
                         newMethodName = "find";
+
+                        RegisterAncestorRewrite(syntaxNode =>
+                        {
+                            var invocation = (InvocationExpressionSyntax)syntaxNode;
+
+                            return invocation.ArgumentList.Arguments.Any() ? syntaxNode : invocation.WithArgumentList(CreateArgumentList(SyntaxFactory.ParseExpression("_ => true")));
+                        }, SyntaxKind.InvocationExpression);
+
                         break;
                     }
 
@@ -317,6 +345,83 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         break;
                     }
 
+                    case nameof(Enumerable.Max):
+                    case nameof(Enumerable.Min):
+                    {
+                        var isMax = methodName == nameof(Enumerable.Max);
+
+                        var invocation = (InvocationExpressionSyntax)node.Parent;
+
+                        // If argument is present, use map to select just those values
+                        if (invocation.ArgumentList.Arguments.Any())
+                        {
+                            newMethodName = "map";
+                            RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var invocation = (InvocationExpressionSyntax)syntaxNode;
+
+                                return SyntaxFactory.InvocationExpression(
+                                    SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, SyntaxFactory.IdentifierName("Math"),
+                                        SyntaxFactory.IdentifierName(isMax ? "max" : "min")
+                                    ),
+                                    CreateArgumentList(invocation).WithOpenParenToken(CreateToken(SyntaxKind.OpenParenToken, "(..."))
+                                );
+                            }, SyntaxKind.InvocationExpression);
+                        }
+                        else
+                        {
+                            var overrideContainingExpresion =
+                                overrideVisit is MemberAccessExpressionSyntax member1 ? member1.Expression : ((ConditionalAccessExpressionSyntax)overrideVisit).Expression;
+
+                            RegisterAncestorRewrite(_ =>
+                            {
+                                return SyntaxFactory.InvocationExpression(
+                                    SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, SyntaxFactory.IdentifierName("Math"),
+                                        SyntaxFactory.IdentifierName(isMax ? "max" : "min")
+                                    ),
+                                    CreateArgumentList(overrideContainingExpresion).WithOpenParenToken(CreateToken(SyntaxKind.OpenParenToken, "(..."))
+                                );
+                            }, SyntaxKind.InvocationExpression);
+
+                            return overrideContainingExpresion;
+                        }
+
+                        break;
+                    }
+
+                    case nameof(Enumerable.Range):
+                    {
+                        RegisterAncestorRewrite(syntaxNode =>
+                        {
+                            var invocation = (InvocationExpressionSyntax)syntaxNode;
+                            var start = invocation.ArgumentList.Arguments[0].Expression.ToString();
+                            var count = invocation.ArgumentList.Arguments[1].Expression.ToString();
+
+                            return SyntaxFactory.ParseExpression($"[...Array({count} + {start}).keys()].slice({start})");
+                        }, SyntaxKind.InvocationExpression);
+                        break;
+                    }
+
+                    case nameof(Enumerable.Append):
+                    {
+                        newMethodName = "concat";
+                        break;
+                    }
+
+                    case nameof(Enumerable.Prepend):
+                    {
+                        RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var invocation = (InvocationExpressionSyntax)syntaxNode;
+                                var argument = invocation.ArgumentList.Arguments.First().Expression;
+
+                                return SyntaxFactory.InvocationExpression(argument.WithLeadingTrivia(argument.GetLeadingTrivia().Append("["))
+                                    .WithTrailingTrivia(argument.GetTrailingTrivia().Prepend("]")), CreateArgumentList(invocation.Expression));
+                            },
+                            SyntaxKind.InvocationExpression);
+                        break;
+                    }
+
                     case nameof(IList.Clear):
                     {
                         RegisterAncestorRewrite(syntaxNode =>
@@ -369,11 +474,34 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         if (symbol.ContainingType.Name == "Dictionary")
                             RegisterAncestorRewrite(syntaxNode =>
                             {
-                                var invExpression = (InvocationExpressionSyntax)syntaxNode;
-                                var dictionaryExp = (invExpression.Expression as MemberAccessExpressionSyntax).Expression;
+                                var invocation = (InvocationExpressionSyntax)syntaxNode;
+                                var dictionaryExp = (invocation.Expression as MemberAccessExpressionSyntax).Expression;
 
-                                return invExpression.ArgumentList.Arguments[0].Expression.WithTrailingTrivia(invExpression.GetTrailingTrivia().Prepend($" in {dictionaryExp.ToString()}"));
+                                return invocation.ArgumentList.Arguments[0].Expression.WithTrailingTrivia(invocation.GetTrailingTrivia().Prepend($" in {dictionaryExp.ToString()}"));
                             }, SyntaxKind.InvocationExpression);
+
+                        break;
+                    }
+
+                    case "GetValueOrDefault":
+                    {
+                        RegisterAncestorRewrite(syntaxNode =>
+                        {
+                            var invocation = (InvocationExpressionSyntax)syntaxNode;
+                            var dictionaryExp = (invocation.Expression as MemberAccessExpressionSyntax).Expression;
+
+                            ExpressionSyntax result = SyntaxFactory.ElementAccessExpression(
+                                dictionaryExp,
+                                SyntaxFactory.BracketedArgumentList(SyntaxFactory.SeparatedList(new[]
+                                    { SyntaxFactory.Argument(invocation.ArgumentList.Arguments[0].Expression) })));
+
+                            if (invocation.ArgumentList.Arguments.Count > 1)
+                                result = SyntaxFactory.ParenthesizedExpression(SyntaxFactory.BinaryExpression(SyntaxKind.CoalesceExpression, result, invocation.ArgumentList.Arguments[1].Expression));
+
+                            return result;
+
+                            return invocation.ArgumentList.Arguments[0].Expression.WithTrailingTrivia(invocation.GetTrailingTrivia().Prepend($" in {dictionaryExp.ToString()}"));
+                        }, SyntaxKind.InvocationExpression);
 
                         break;
                     }
@@ -523,6 +651,15 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                     {
                         if (symbol.ContainingSymbol.Name == "String")
                             return SyntaxFactory.ParseExpression("''");
+
+                        break;
+                    }
+
+                    case { } when methodName.StartsWith("Empty<"):
+                    {
+                        if (symbol.ContainingSymbol.Name == "Array")
+                            RegisterAncestorRewrite(syntaxNode => { return SyntaxFactory.ParseExpression("[]"); },
+                                SyntaxKind.InvocationExpression);
 
                         break;
                     }
@@ -748,7 +885,7 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                     case "Groups":
                     {
                         if (symbol.ContainingSymbol.Name == "Match" && overrideVisit is MemberAccessExpressionSyntax member1)
-                            return SyntaxFactory.ConditionalAccessExpression(member1.Expression,  SyntaxFactory.MemberBindingExpression(member1.Name));
+                            return SyntaxFactory.ConditionalAccessExpression(member1.Expression, SyntaxFactory.MemberBindingExpression(member1.Name));
 
                         break;
                     }
@@ -814,6 +951,13 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                 } conditional => conditional.WithWhenNotNull(invocation.WithExpression(memberBinding.WithName(newIdentifier))),
                 _ => throw new ArgumentOutOfRangeException(nameof(node), node, null)
             };
+        }
+
+        if (symbol.ContainingType.IsTupleType)
+        {
+            var position = symbol.ContainingType.TupleElements.ToList().FindIndex(e => e.Name.ToLower() == methodName.ToLower());
+            return SyntaxFactory.ElementAccessExpression(containingExpresion,
+                SyntaxFactory.BracketedArgumentList(SyntaxFactory.SeparatedList(new[] { SyntaxFactory.Argument(SyntaxFactory.ParseExpression(position.ToString())) })));
         }
 
         return overrideVisit;

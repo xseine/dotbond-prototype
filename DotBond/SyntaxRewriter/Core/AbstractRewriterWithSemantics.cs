@@ -119,7 +119,7 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
 
     public static ArgumentListSyntax CreateArgumentList(params ExpressionSyntax[] arguments)
     {
-        return SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(arguments.Select(SyntaxFactory.Argument)));
+        return SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList((arguments ?? Array.Empty<ExpressionSyntax>()).Select(SyntaxFactory.Argument)));
     }
 
     protected static readonly Random Random = new();
