@@ -21,12 +21,21 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
     public override SyntaxNode VisitConditionalAccessExpression(ConditionalAccessExpressionSyntax node)
     {
-        TryGetSavedSymbolsToUse(node);
         var memberBinding = node.DescendantNodes().OfType<MemberBindingExpressionSyntax>().Last();
-        var nonConditionalAccess = node.WhenNotNull.ReplaceNode(memberBinding,
-            SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, node.Expression, CreateToken(SyntaxKind.DotToken, "?."), memberBinding.Name));
+        var newMemberAccess = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, node.Expression, CreateToken(SyntaxKind.DotToken, "?."), memberBinding.Name);
+        _savedSymbolsFromOriginalTree.Add(newMemberAccess.ToString(), GetSymbol(memberBinding));
+        var nonConditionalAccess = node.WhenNotNull.ReplaceNode(memberBinding, newMemberAccess);
+
+        var memberAccessAfterConditional = node.WhenNotNull.DescendantNodes().OfType<MemberAccessExpressionSyntax>().ToList();
+        var idx = 0;
+        foreach (var memberAccess in nonConditionalAccess.DescendantNodes().OfType<MemberAccessExpressionSyntax>().Take(memberAccessAfterConditional.Count))
+        {
+            _savedSymbolsFromOriginalTree.Add(memberAccess.ToString(), GetSymbol(memberAccessAfterConditional[idx++]));
+        }
+        
+        TryGetSavedSymbolsToUse(ref node);
         var overrideVisit = base.Visit(nonConditionalAccess);
-        ClearSavedSymbols();
+        ClearSavedSymbols(ref overrideVisit);
 
         return overrideVisit;
     }
@@ -57,8 +66,7 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
         var containingExpresion = node is MemberAccessExpressionSyntax member ? member.Expression : ((ConditionalAccessExpressionSyntax)node).Expression;
         var isLocalVariableToImportTypeOf =
-            (GetSymbol(containingExpresion) ?? SemanticModel.GetSymbolInfo(containingExpresion).Symbol)?.Kind ==
-            SymbolKind.Local;
+            GetSymbol(containingExpresion)?.Kind == SymbolKind.Local;
 
         // If property, record the type and return
         if (symbol is IPropertySymbol propertySymbol)
@@ -96,9 +104,6 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
         // New name for the method to, e.g. "toString"
         string newMethodName = null;
-
-        if (newMethodName == "Prepend")
-            Console.WriteLine();
 
         switch (containingNamespace)
         {
@@ -415,8 +420,10 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                                 var invocation = (InvocationExpressionSyntax)syntaxNode;
                                 var argument = invocation.ArgumentList.Arguments.First().Expression;
 
-                                return SyntaxFactory.InvocationExpression(argument.WithLeadingTrivia(argument.GetLeadingTrivia().Append("["))
-                                    .WithTrailingTrivia(argument.GetTrailingTrivia().Prepend("]")), CreateArgumentList(invocation.Expression));
+                                var concat = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, argument.WithLeadingTrivia(argument.GetLeadingTrivia().Append("["))
+                                    .WithTrailingTrivia(argument.GetTrailingTrivia().Prepend("]")), SyntaxFactory.IdentifierName("concat"));
+                                
+                                return SyntaxFactory.InvocationExpression(concat, CreateArgumentList(((MemberAccessExpressionSyntax)invocation.Expression).Expression));
                             },
                             SyntaxKind.InvocationExpression);
                         break;

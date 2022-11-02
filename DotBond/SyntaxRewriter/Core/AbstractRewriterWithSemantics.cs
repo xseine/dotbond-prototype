@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -12,6 +13,7 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
 
     protected readonly Dictionary<string, ISymbol> _savedSymbolsFromOriginalTree = new();
     protected readonly Dictionary<string, ITypeSymbol> _savedTypeSymbolsFromOriginalTree = new();
+    private readonly List<string> _overridenIdentifiers = new();
 
     /// <summary>
     /// Lists all the properties used by the classes and their properties in the syntax tree.
@@ -29,7 +31,7 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
     /// <param name="node"></param>
     protected void GetSymbolsFromTypeSyntax(TypeSyntax node)
     {
-        if (node is IdentifierNameSyntax {Identifier.Text: not "dynamic" and not "DateTime"})
+        if (node is IdentifierNameSyntax { Identifier.Text: not "dynamic" and not "DateTime" })
         {
             var symbol = SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetSymbolInfo(node).Symbol : null;
             if (symbol != null && symbol.DeclaringSyntaxReferences.Any())
@@ -44,33 +46,31 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
                 if (typeSymbol != null && typeSymbol.DeclaringSyntaxReferences.Any()) ImportedSymbols.Add(typeSymbol.OriginalDefinition);
             }
             else
-                foreach (var typeSyntax in generic.TypeArgumentList.Arguments.ToList()) 
+                foreach (var typeSyntax in generic.TypeArgumentList.Arguments.ToList())
                     GetSymbolsFromTypeSyntax(typeSyntax);
         }
     }
 
     protected ISymbol GetSavedSymbol(SyntaxNode node)
     {
-        var key = GetNodeKey(node);
-        return _savedSymbolsFromOriginalTree.TryGetValue(key, out var savedSymbol) ? savedSymbol : null;
+        return _savedSymbolsFromOriginalTree.TryGetValue(node.ToString(), out var savedSymbol) ? savedSymbol : null;
     }
 
     protected ITypeSymbol GetSavedTypeSymbol(SyntaxNode node)
     {
-        var key = GetNodeKey(node);
-        return _savedTypeSymbolsFromOriginalTree.TryGetValue(key, out var savedSymbol) ? savedSymbol : null;
+        return _savedTypeSymbolsFromOriginalTree.TryGetValue(node.ToString(), out var savedSymbol) ? savedSymbol : null;
     }
 
-    private static string GetNodeKey(SyntaxNode node)
-    {
-        var key = node is IdentifierNameSyntax {Parent: MemberAccessExpressionSyntax parent} identifier ? $"{parent.ToString().ToLower()}+{identifier.ToString().ToLower()}" : node.ToString();
-        return key;
-    }
+    // private static string GetNodeKey(SyntaxNode node)
+    // {
+    //     var key = node is IdentifierNameSyntax {Parent: MemberAccessExpressionSyntax parent} identifier ? $"{parent.ToString().ToLower()}+{identifier.ToString().ToLower()}" : node.ToString();
+    //     return key;
+    // }
 
     protected ISymbol GetSymbol(SyntaxNode node)
     {
         return GetSavedSymbol(node) ??
-            (SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetSymbolInfo(node).Symbol : null);
+               (SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetSymbolInfo(node).Symbol : null);
     }
 
     protected ITypeSymbol GetTypeSymbol(SyntaxNode node)
@@ -79,30 +79,54 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
                (SemanticModel.SyntaxTree.GetRoot().Contains(node) ? SemanticModel.GetTypeInfo(node).Type : null);
     }
 
-    protected bool TryGetSavedSymbolsToUse(SyntaxNode node)
+    protected bool TryGetSavedSymbolsToUse<TSyntax>(ref TSyntax node) where TSyntax : SyntaxNode
     {
         if (!SemanticModel.SyntaxTree.GetRoot().Contains(node)) return false;
-    
-        foreach (var expressionSyntax in node.DescendantNodes().OfType<ExpressionSyntax>())
-        {
-            var key = GetNodeKey(expressionSyntax);
-            
-            var symbol = SemanticModel.GetSymbolInfo(expressionSyntax).Symbol;
-            if (symbol != null)
-                _savedSymbolsFromOriginalTree.TryAdd(key, symbol);
-        }
+
+        var identifiersWithNonUniqueName = node.DescendantNodes().OfType<IdentifierNameSyntax>().GroupBy(e => e.Identifier.Text).Where(e => e.Count() > 1).Select(e => e.Key).ToList();
+        var nonUniqueIdx = 0;
+
+        var overridenIdentifiers = new List<string>();
+        var nodesToReplace = new List<SyntaxNode>();
 
         foreach (var expressionSyntax in node.DescendantNodes().OfType<ExpressionSyntax>())
         {
-            var key = GetNodeKey(expressionSyntax);
+            var symbol = SemanticModel.GetSymbolInfo(expressionSyntax).Symbol;
+            if (symbol == null) continue;
+
+            var key = expressionSyntax.ToString();
+
+            if (expressionSyntax is IdentifierNameSyntax id && identifiersWithNonUniqueName.Contains(id.Identifier.Text))
+            {
+                key = id.Identifier.Text + "uniqueSufix" + nonUniqueIdx++;
+                overridenIdentifiers.Add(key);
+                nodesToReplace.Add(expressionSyntax);
+            }
+
+            _savedSymbolsFromOriginalTree.TryAdd(key, symbol);
             _savedTypeSymbolsFromOriginalTree.TryAdd(key, SemanticModel.GetTypeInfo(expressionSyntax).Type);
         }
+
+
+        var idx = 0;
+        node = node.ReplaceNodes(nodesToReplace, (_, _) => SyntaxFactory.IdentifierName(overridenIdentifiers[idx++]));
+        _overridenIdentifiers.AddRange(overridenIdentifiers);
 
         return true;
     }
 
-    protected void ClearSavedSymbols()
+    protected void ClearSavedSymbols<TSyntax>(ref TSyntax overridenNode) where TSyntax : SyntaxNode
     {
+        if (_overridenIdentifiers.Any())
+        {
+            var nodesToReplace = overridenNode.DescendantNodes().OfType<IdentifierNameSyntax>().Where(e => _overridenIdentifiers.Contains(e.Identifier.Text, StringComparer.OrdinalIgnoreCase));
+
+            overridenNode = overridenNode.ReplaceNodes(nodesToReplace, (id, _) =>
+                SyntaxFactory.IdentifierName(Regex.Replace(id.Identifier.Text, @"uniqueSufix\d+$", "")).WithLeadingTrivia(id.GetLeadingTrivia()).WithTrailingTrivia(id.GetTrailingTrivia())
+            );
+            _overridenIdentifiers.Clear();
+        }
+
         _savedSymbolsFromOriginalTree.Clear();
         _savedTypeSymbolsFromOriginalTree.Clear();
     }
@@ -138,20 +162,20 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
             // Adjust according to requirements.
             return StringComparer.InvariantCultureIgnoreCase
                 .Equals(one?.ContainingNamespace.Name + one?.Name, two?.ContainingNamespace.Name + two?.Name);
-
         }
 
         public int GetHashCode(ITypeSymbol item)
         {
             return StringComparer.InvariantCultureIgnoreCase
                 .GetHashCode(item.ContainingNamespace.Name + item.Name);
-
         }
     }
 
     public class TopLevelSymbolsSet : HashSet<ITypeSymbol>
     {
-        public TopLevelSymbolsSet(IEqualityComparer<ITypeSymbol> comparer) : base(comparer) { }
+        public TopLevelSymbolsSet(IEqualityComparer<ITypeSymbol> comparer) : base(comparer)
+        {
+        }
 
         public new bool Add(ITypeSymbol item)
         {

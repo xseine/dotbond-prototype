@@ -9,6 +9,8 @@ public partial class Rewriter
 {
     public override SyntaxNode VisitSwitchExpression(SwitchExpressionSyntax node)
     {
+        var hasSavedSymbols = TryGetSavedSymbolsToUse(ref node);
+
         var leadingTrivia = node.Arms.First().GetLeadingTrivia().ToFullString();
 
         var newArms = node.Arms.Select(arm =>
@@ -32,11 +34,9 @@ public partial class Rewriter
                 (acc, curr) => curr.WithElse(SyntaxFactory.ElseClause(acc.WithLeadingTrivia(SyntaxFactory.Space)).WithLeadingTrivia("\n" + leadingTrivia + "\t")))
             .WithLeadingTrivia(leadingTrivia + "\t");
 
-        var hasSavedSymbols = TryGetSavedSymbolsToUse(node);
-
         var overrideVisit = (IfStatementSyntax)base.VisitIfStatement((IfStatementSyntax)ifAggregate);
 
-        if (hasSavedSymbols) ClearSavedSymbols();
+        if (hasSavedSymbols) ClearSavedSymbols(ref overrideVisit);
         // var openingBlockTrivia = node.ArgumentList?.GetTrailingTrivia() ?? node.Type.GetTrailingTrivia();
 
         var block = SyntaxFactory.Block(overrideVisit)

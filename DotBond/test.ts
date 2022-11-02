@@ -24,7 +24,7 @@
 
         function FewestCoinsForChange(current: { [key: number]: number[] }, subChange: number) {
             return coins.filter(coin => coin <= subChange)
-                .map(coin => (current[subChange - coin] ?? [1])?.Prepend(coin).ToArray())
+                .map(coin => [coin].concat((current[subChange - coin] ?? [1])))
                 .filter(fewestCoins => fewestCoins != null)
                 .sort((a, b) => a.length - b.length).find(_ => true);
         };

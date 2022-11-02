@@ -391,10 +391,10 @@ export namespace {nodeName} {{
                 overrideVisit = overrideVisit.RemoveNodes(superCalls, SyntaxRemoveOptions.KeepNoTrivia);
             }
 
-            var hasSavedSymbols = TryGetSavedSymbolsToUse(node);
+            // var hasSavedSymbols = TryGetSavedSymbolsToUse(node);
             var visitedExpressionBody = (BlockSyntax)VisitBlock(expressionBody);
 
-            if (hasSavedSymbols) ClearSavedSymbols();
+            // if (hasSavedSymbols) ClearSavedSymbols(ref visitedExpressionBody);
 
             var overloadImplementationFunction = SyntaxFactory.MethodDeclaration(default, csOverloads.First().Modifiers, SyntaxFactory.ParseTypeName(""), null, SyntaxFactory.Identifier(overloadName),
                     default,
