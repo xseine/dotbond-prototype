@@ -1,9 +1,25 @@
-import {ChangeDetectionStrategy, Component, OnInit} from '@angular/core';
+import {ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
 import {IComponentHeaderText} from '../app.component';
 import {QueryService} from '../api/actions/query.service';
-import {map, mergeWith, Observable, scan, shareReplay, startWith, Subject, switchMap, tap} from 'rxjs';
+import {
+    combineLatest,
+    distinctUntilKeyChanged,
+    firstValueFrom,
+    map,
+    mergeWith,
+    Observable,
+    of,
+    scan,
+    share,
+    shareReplay,
+    startWith,
+    Subject,
+    switchMap, switchScan,
+    tap
+} from 'rxjs';
 // @ts-ignore
 import emptyBoxSource from '/src/assets/icons/empty-box.svg';
+import {Picker} from "@spectrum-web-components/bundle";
 
 @Component({
     selector: 'directing',
@@ -12,13 +28,13 @@ import emptyBoxSource from '/src/assets/icons/empty-box.svg';
         <div class="spectrum-Form-item" style="margin-top: 1em">
             <sp-field-label for="picker-m" size="m">Add an actor:</sp-field-label>
             <sp-picker id="picker-m" size="m" label="Actor name" #picker (change)="actorPick.next(+picker.value)">
-                <sp-menu-item *ngFor="let actor of (actorSelection$ | async)!.listOfNames" value="{{actor.id}}">{{actor.name}}</sp-menu-item>
+                <sp-menu-item *ngFor="let actor of unselectedActors$ | async" value="{{actor.id}}">{{actor.name}}</sp-menu-item>
             </sp-picker>
         </div>
-        
+
         <div class="spectrum-grid">
             <table class="actors spectrum-Table spectrum-Table--sizeM spectrum-Table--spacious spectrum-Table--quiet"
-                   *ngIf="(actorSelection$ | async)!.profilesAndStats.length !== 0">
+                   *ngIf="(selectedActors$ | async)?.length">
                 <thead class="spectrum-Table-head">
                 <tr>
                     <th class="spectrum-Table-headCell"></th>
@@ -30,7 +46,7 @@ import emptyBoxSource from '/src/assets/icons/empty-box.svg';
                 </tr>
                 </thead>
                 <tbody class="spectrum-Table-body" [transition-group]="'flip-list'">
-                <tr class="spectrum-Table-row" *ngFor="let actor of (actorSelection$ | async)!.profilesAndStats"
+                <tr class="spectrum-Table-row" *ngFor="let actor of selectedActors$ | async"
                     (mouseenter)="addHoverOnColleagues(actor.id, getIds(actor.colleagues))"
                     (mouseleave)="removeHoverFromColleagues()"
                     [ngClass]="{'hover': hoveredColleagues.includes(actor.id)}"
@@ -49,7 +65,7 @@ import emptyBoxSource from '/src/assets/icons/empty-box.svg';
             </table>
 
             <empty-illustration heading="Table is empty" description="Select actors to view their stats"
-                                *ngIf="(actorSelection$ | async)!.profilesAndStats.length === 0"></empty-illustration>
+                                *ngIf="!(selectedActors$ | async)?.length"></empty-illustration>
         </div>
     `,
     styleUrls: ['./directing.component.scss'],
@@ -58,47 +74,76 @@ import emptyBoxSource from '/src/assets/icons/empty-box.svg';
 export class DirectingComponent implements OnInit, IComponentHeaderText {
     readonly headerText = 'Direct your own';
 
-    actorSelection$: Observable<{ listOfNames: { name: string, id: number }[], profilesAndStats: ProfileAndStatsType[] }>;
+    unselectedActors$: Observable<{ name: string, id: number }[]>;
+    selectedActors$: Observable<ProfileAndStatsType[]>;
     actorPick = new Subject<number>();
     actorRemoval = new Subject<number>();
     Math = Math;
 
-    joinColleagues = new Subject<{actorId: number, colleagues: number[]}>();
-    
-    constructor(private _api: QueryService) {
+    joinColleagues = new Subject<{ actorId: number, colleagues: number[] }>();
 
-        this.actorSelection$ = _api.GetListOfActorNames().pipe(
-            switchMap(actors => this.actorPick.pipe(
-                    switchMap(id => _api.GetShortProfileAndWorkStats(id).pipe(          // Load profile and stats
-                        mergeWith(this.actorRemoval))),                                         // And subscribe to removal
-                    scan((acc, curr) =>
-                        isNaN(curr as any)
-                            ? [...acc, curr as ProfileAndStatsType]
-                            : acc.filter(e => e.id !== curr), [] as ProfileAndStatsType[]),     // Either append the new actor, or remove an existing
-                    map(profilesAndStats => ({listOfNames: actors.filter(e => profilesAndStats.every(ee => ee.id != e.id)), profilesAndStats})),    // Output a list of names and a list of stats
-                    startWith({
-                        listOfNames: actors,
-                        profilesAndStats: []
-                    })
-                )
-            ),
-            startWith({listOfNames: [], profilesAndStats: [] as ProfileAndStatsType[]}),
-            switchMap(e => {
-                let order = e.profilesAndStats;
-                return this.joinColleagues.pipe(map(({actorId, colleagues}) => {
-                    let nonColleaguesBefore = order.slice(0, order.findIndex(e => e.id === actorId)).filter(e => !colleagues.includes(e.id));
-                    let nonColleaguesAfter = order.slice(order.findIndex(e => e.id === actorId) + 1).filter(e => !colleagues.includes(e.id));
-                    
-                    order = [...nonColleaguesBefore, ...order.filter(e => e.id === actorId || colleagues.includes(e.id)), ...nonColleaguesAfter];
-                    
-                    return {...e, profilesAndStats: [...order]};
-                }), startWith(e));
-            }),
-            shareReplay(1)
-        )
+    @ViewChild('picker') picker: ElementRef<Picker>;
+
+    constructor(private _api: QueryService, private _cd: ChangeDetectorRef) {
     }
 
-    ngOnInit(): void {
+    async ngOnInit() {
+
+        let actors = await firstValueFrom(this._api.GetListOfActorNames());
+        let selectedIds$ = this.actorPick.pipe(
+            scan((acc, curr) => [...acc, curr], [] as number[]),
+            switchMap(pickAcc => this.actorRemoval.pipe(
+                scan((acc, curr) => acc.filter(e => e != curr), pickAcc),
+                startWith(pickAcc)
+            )),
+            share()
+        );
+        
+
+        this.unselectedActors$ = selectedIds$.pipe(map(ids => actors.filter(e => !ids.includes(e.id))), startWith(actors));
+        this.selectedActors$ = selectedIds$.pipe(
+            switchScan((acc, curr) => {
+                acc = acc.filter(e => curr.includes(e.id));
+
+                if (curr.length == acc.length) return of(acc);
+
+                let newIds = curr.filter(id => !acc.map(e => e.id).includes(id));
+                return combineLatest(...newIds.map(newId => this._api.GetShortProfileAndWorkStats(newId))).pipe(map(data => acc.concat(data)));
+            }, [] as ProfileAndStatsType[])
+        );
+        
+        this._cd.detectChanges();
+        
+        // this.actorSelection$ = of(null).pipe(
+        //     switchMap(actors => this.actorPick.pipe(
+        //             switchMap(id => _api.GetShortProfileAndWorkStats(id).pipe(          // Load profile and stats
+        //                 mergeWith(this.actorRemoval))),                                         // And subscribe to removal
+        //             scan((acc, curr) =>
+        //                 isNaN(curr as any)
+        //                     ? [...acc, curr as ProfileAndStatsType]
+        //                     : acc.filter(e => e.id !== curr), [] as ProfileAndStatsType[]),     // Either append the new actor, or remove an existing
+        //             map(profilesAndStats => ({listOfNames: actors.filter(e => profilesAndStats.every(ee => ee.id != e.id)), profilesAndStats})),    // Output a list of names and a list of stats
+        //             startWith({
+        //                 listOfNames: actors,
+        //                 profilesAndStats: []
+        //             })
+        //         )
+        //     ),
+        //     startWith({listOfNames: [], profilesAndStats: [] as ProfileAndStatsType[]}),
+        //     switchMap(e => {
+        //         let order = e.profilesAndStats;
+        //         return this.joinColleagues.pipe(distinctUntilKeyChanged('actorId'), map(({actorId, colleagues}) => {
+        //             let nonColleaguesBefore = order.slice(0, order.findIndex(e => e.id === actorId)).filter(e => !colleagues.includes(e.id));
+        //             let nonColleaguesAfter = order.slice(order.findIndex(e => e.id === actorId) + 1).filter(e => !colleagues.includes(e.id));
+        //
+        //             order = [...nonColleaguesBefore, ...order.filter(e => e.id === actorId || colleagues.includes(e.id)), ...nonColleaguesAfter];
+        //
+        //             return {...e, profilesAndStats: [...order]};
+        //         }), startWith(e));
+        //     }),
+        //     tap(_ => this.picker && (this.picker.nativeElement.value = null)),
+        //     shareReplay(1)
+        // )
     }
 
     /*========================== Event Listeners ==========================*/
