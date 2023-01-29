@@ -15,7 +15,7 @@ import emptyBoxSource from '/src/assets/icons/empty-box.svg';
                 <sp-menu-item *ngFor="let actor of (actorSelection$ | async)!.listOfNames" value="{{actor.id}}">{{actor.name}}</sp-menu-item>
             </sp-picker>
         </div>
-
+        
         <div class="spectrum-grid">
             <table class="actors spectrum-Table spectrum-Table--sizeM spectrum-Table--spacious spectrum-Table--quiet"
                    *ngIf="(actorSelection$ | async)!.profilesAndStats.length !== 0">
@@ -29,11 +29,12 @@ import emptyBoxSource from '/src/assets/icons/empty-box.svg';
                     <th></th>
                 </tr>
                 </thead>
-                <tbody class="spectrum-Table-body">
+                <tbody class="spectrum-Table-body" [transition-group]="'flip-list'">
                 <tr class="spectrum-Table-row" *ngFor="let actor of (actorSelection$ | async)!.profilesAndStats"
-                    (mouseenter)="addHoverOnColleagues(getIds(actor.colleagues))"
+                    (mouseenter)="addHoverOnColleagues(actor.id, getIds(actor.colleagues))"
                     (mouseleave)="removeHoverFromColleagues()"
                     [ngClass]="{'hover': hoveredColleagues.includes(actor.id)}"
+                    transition-group-item
                 >
                     <td class="spectrum-Table-cell"><img [src]="actor.picture | safeUrl" alt="Actor's photo"/></td>
                     <td class="spectrum-Table-cell"><h2 class="spectrum-Heading spectrum-Heading--sizeS">{{actor.name}}</h2></td>
@@ -62,6 +63,8 @@ export class DirectingComponent implements OnInit, IComponentHeaderText {
     actorRemoval = new Subject<number>();
     Math = Math;
 
+    joinColleagues = new Subject<{actorId: number, colleagues: number[]}>();
+    
     constructor(private _api: QueryService) {
 
         this.actorSelection$ = _api.GetListOfActorNames().pipe(
@@ -79,7 +82,18 @@ export class DirectingComponent implements OnInit, IComponentHeaderText {
                     })
                 )
             ),
-            startWith({listOfNames: [], profilesAndStats: []}),
+            startWith({listOfNames: [], profilesAndStats: [] as ProfileAndStatsType[]}),
+            switchMap(e => {
+                let order = e.profilesAndStats;
+                return this.joinColleagues.pipe(map(({actorId, colleagues}) => {
+                    let nonColleaguesBefore = order.slice(0, order.findIndex(e => e.id === actorId)).filter(e => !colleagues.includes(e.id));
+                    let nonColleaguesAfter = order.slice(order.findIndex(e => e.id === actorId) + 1).filter(e => !colleagues.includes(e.id));
+                    
+                    order = [...nonColleaguesBefore, ...order.filter(e => e.id === actorId || colleagues.includes(e.id)), ...nonColleaguesAfter];
+                    
+                    return {...e, profilesAndStats: [...order]};
+                }), startWith(e));
+            }),
             shareReplay(1)
         )
     }
@@ -91,8 +105,9 @@ export class DirectingComponent implements OnInit, IComponentHeaderText {
 
     hoveredColleagues: number[] = [];
 
-    addHoverOnColleagues(colleaguesIds: number[]): void {
+    addHoverOnColleagues(actorId: number, colleaguesIds: number[]): void {
         this.hoveredColleagues = colleaguesIds;
+        this.joinColleagues.next({actorId, colleagues: colleaguesIds});
     }
 
     removeHoverFromColleagues(): void {

@@ -11,6 +11,10 @@ namespace DotBond.Workspace;
 
 public record FileAnalysisCallbackInput(SyntaxTree FileTree, SemanticModel SemanticModel, string AssemblyName);
 
+/// <summary>
+/// Used to register event handlers for file events.
+/// Usually to extract controller/type information from source files.
+/// </summary>
 public class FileObservable : IDisposable
 {
     private readonly string _csProjPath;

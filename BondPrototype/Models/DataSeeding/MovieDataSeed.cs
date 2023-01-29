@@ -39,13 +39,21 @@ public static class MovieDataSeed
         var joshUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "josh.txt"));
         var timotheeUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "timothee.txt"));
         var woodyUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "woody.txt"));
+        var zendayaUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "zendaya.txt"));
+        var emilyUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "emily.txt"));
+        var oscarUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "oscar.txt"));
+        var rebeccaUrl = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "rebecca.txt"));
 
         var benicioBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "benicio-bio.txt"));
         var javierBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "javier-bio.txt"));
         var joshBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "josh-bio.txt"));
         var timotheeBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "timothee-bio.txt"));
         var woodyBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "woody-bio.txt"));
-
+        var zendayaBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "zendaya.txt"));
+        var emilyBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "emily.txt"));
+        var oscarBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "oscar.txt"));
+        var rebeccaBio = File.ReadAllText(Path.Combine("Models", "DataSeeding", "Actors", "Biographies", "rebecca.txt"));
+        
         return new List<object>
         {
             new { Id = 1, Name = "Denis Villeneuve"},
@@ -54,7 +62,11 @@ public static class MovieDataSeed
             new { Id = 4, Name = "Javier Bardem", Picture = javierUrl, Biography = javierBio },
             new { Id = 5, Name = "Timothée Chalamet", Picture = timotheeUrl, Biography = timotheeBio },
             new { Id = 6, Name = "Woody Harrelson", Picture = woodyUrl, Biography = woodyBio },
-            new { Id = 7, Name = "Benicio Del Toro", Picture = benicioUrl, Biography = benicioBio }
+            new { Id = 7, Name = "Benicio Del Toro", Picture = benicioUrl, Biography = benicioBio },
+            new { Id = 8, Name = "Zendaya", Picture = zendayaUrl, Biography = zendayaBio },
+            new { Id = 9, Name = "Emily Blunt", Picture = emilyUrl, Biography = emilyBio },
+            new { Id = 10, Name = "Oscar Isaac", Picture = oscarUrl, Biography = oscarBio },
+            new { Id = 11, Name = "Rebecca Ferguson", Picture = rebeccaUrl, Biography = rebeccaBio },
         };
     }
 
@@ -66,6 +78,9 @@ public static class MovieDataSeed
             new { ActedInId = 1, ActorsId = 3 },
             new { ActedInId = 1, ActorsId = 4 },
             new { ActedInId = 1, ActorsId = 5 },
+            new { ActedInId = 1, ActorsId = 8 },
+            new { ActedInId = 1, ActorsId = 10 },
+            new { ActedInId = 1, ActorsId = 11 },
 
             // Josh, Javier, Woody in "No Country for Old Men"
             new { ActedInId = 2, ActorsId = 3 },
@@ -74,7 +89,8 @@ public static class MovieDataSeed
 
             // Josh, Benicio in "Sicario"
             new { ActedInId = 3, ActorsId = 3 },
-            new { ActedInId = 3, ActorsId = 7 }
+            new { ActedInId = 3, ActorsId = 7 },
+            new { ActedInId = 3, ActorsId = 9 },
         };
     }
 

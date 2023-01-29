@@ -1,0 +1,51 @@
+﻿<div class="spectrum-grid">
+    <div class="actors-grid spectrum-grid" #grid>
+            <overlay-trigger placement="bottom-start" type="replace" *ngFor="let actor of actorProfiles$ | async" elipsisOnHover
+                #overlay
+            >
+<!--            <sp-button style="display: none" slot="trigger" #trigger></sp-button>-->
+            <actor-avatar
+                    [data]="actor"
+                    [attr.active]="(selectedActorProfile$ | async)?.id == actor.id ? '' : null"
+                    slot="trigger"
+                    #avatar
+                    (click)="onActorClick(actor.id, $event)"
+            >
+            </actor-avatar>
+
+            <sp-popover slot="click-content" open>
+                <sp-dialog size="l" no-divider>
+<!--                    <h2 slot="heading">Click content</h2>-->
+                    
+                    <div class="biography-text">
+                        {{(selectedActorProfile$ | async)?.biography}}
+                    </div>
+                    
+                    <sp-button
+                            slot="button"
+                            onclick="javascript: this.dispatchEvent(new Event('close', {bubbles: true, composed: true}));"
+                    >
+                        Close
+                    </sp-button>
+                </sp-dialog>
+            </sp-popover>
+        </overlay-trigger>
+    </div>
+
+
+    <div id="actor-filter-options">
+        <sp-search></sp-search>
+
+        <h2 class="spectrum-Heading spectrum-Heading--sizeXS spectrum-Heading--light">Release year</h2>
+        <ul class="release-years">
+            <li>2021</li>
+            <li>2015</li>
+            <li>2007</li>
+        </ul>
+    </div>
+
+    <!--    <actor-full-profile (mouseenter)="grid.classList.add('actor-active')" (mouseleave)="grid.classList.remove('actor-active')"-->
+    <!--                        [data]="selectedActorProfile$ | async"-->
+    <!--                        [style.pointer-events]="(selectedActorProfile$ | async) != null ? 'auto' : 'none'"></actor-full-profile>-->
+
+</div>

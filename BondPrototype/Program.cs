@@ -58,6 +58,8 @@ app.UseSwaggerUI();
 // app.MapFallbackToFile handles default file
 // app.UseDefaultFiles();
 
+app.UseResponseCaching();
+
 // This uses app.UseStaticFiles();
 app.UseSpaStaticFiles();
 

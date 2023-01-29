@@ -31,8 +31,11 @@ import {EmptyIllustrationComponent} from './common/components/empty-illustration
 import {DragDropModule} from '@angular/cdk/drag-drop';
 import {ActorsResolverService} from './actors/services/actors-resolver.service';
 import {MoviesResolverService} from './movies/services/movies-resolver.service';
-import {TranslateDemoComponent} from './translate-demo/translate-demo.component';;
-import { TranslatedContentComponent } from './translate-demo/components/translated-content/translated-content.component'
+import {TranslateDemoComponent} from './translate-demo/translate-demo.component';
+
+;
+import {TranslatedContentComponent} from './translate-demo/components/translated-content/translated-content.component'
+import {TransitionGroupComponent, TransitionGroupItemDirective} from "./common/directives/transition-group.directive";
 
 let routes: Routes = [
     {path: 'movies', component: MoviesComponent, resolve: {movies: MoviesResolverService}},
@@ -67,7 +70,9 @@ let routes: Routes = [
         TooltipWrapperComponent,
         EmptyIllustrationComponent,
         TranslateDemoComponent,
-        TranslatedContentComponent
+        TranslatedContentComponent,
+        TransitionGroupItemDirective,
+        TransitionGroupComponent
     ],
     imports: [
         BrowserModule,

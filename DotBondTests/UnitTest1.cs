@@ -40,7 +40,7 @@ public class Tests
         
         await File.WriteAllTextAsync(translationFilePath, tsSource);
 
-        var command = @$"""C:\Program Files (x86)\Microsoft SDKs\TypeScript\4.4\tsc.js"" ""{translationFilePath}""  --module es2015 --target es2017";
+        var command = @$"""C:\Users\illus\VSProjects\BondPrototype\BondPrototype\Angular\node_modules\typescript\lib\tsc.js"" ""{translationFilePath}""  --module es2015 --target es2017";
         var process = Process.Start("node", command);
         await process.WaitForExitAsync();
         

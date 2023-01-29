@@ -39,3 +39,36 @@ span + span {
         background-color: var(--spectrum-table-m-regular-quiet-row-background-color-hover, var(--spectrum-alias-highlight-hover));
     }
 }
+
+[transition-group-item] {
+    transition-timing-function: var(--spectrum-global-animation-linear);
+}
+
+.flip-list-move {
+    transition: transform .1s;
+}
+
+.flip-list-move1 {
+    transition: transform .3s;
+}
+
+.flip-list-move2 {
+    transition: transform .6s;
+}
+
+.flip-list-move3 {
+    transition: transform .9s;
+}
+
+.flip-list-move4 {
+    transition: transform 1.2s;
+}
+
+.flip-list-move5 {
+    transition: transform 1.5s;
+}
+
+.flip-list-move6 {
+    transition: transform 1.8s;
+}
+

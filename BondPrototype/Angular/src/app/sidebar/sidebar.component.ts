@@ -1,13 +1,12 @@
-import {Component, OnInit} from '@angular/core';
-import {DomSanitizer} from '@angular/platform-browser';
-import {Location} from '@angular/common';
-import {ActivatedRoute, NavigationEnd, NavigationStart, Router} from '@angular/router';
-import {filter, map, Observable, share, tap} from 'rxjs';
+import {ChangeDetectionStrategy, Component, OnInit} from '@angular/core';
+import {NavigationEnd, Router} from '@angular/router';
+import {filter, map, Observable, share} from 'rxjs';
 
 @Component({
     selector: 'sidebar',
     templateUrl: './sidebar.component.html',
-    styleUrls: ['./sidebar.component.scss']
+    styleUrls: ['./sidebar.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SidebarComponent implements OnInit {
 

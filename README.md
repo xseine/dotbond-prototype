@@ -31,14 +31,14 @@ frontend and backend team by developing simpler, but more powerful, APIs.
 To avoid any mysterious allusions: it allows frontend to create queries that fit their needs without waiting for someone from backend team to do it,
 and it allows backend to setup (and change) its API without too much ceremony and customization beforehand.
 
-Theoretically, the frontend would be able to get all the data it needs for a view model by using a single query, but the issue is that the used query implementation could be poor
-or even blocked on the backend, which would not provide the expected performance.
-During development, this could lead to writing a lot of badly performing queries and backend playing catch-up with frontend to tweak those query implementations.
+Theoretically, the frontend would be able to get all the data it needs for a view model by using a single query. The issue is that the used query implementation could be poor
+or left as a client-side query only, which would negatively affect performance of the app.
+Also, during development this could lead to writing a lot of "bad" queries and backend developers having to constantly write optimizations for them.
 
-This tool will try and solve this with features such as: informing frontend about performance expectations when writing queries
-(using TS type system),
-by telling if a new query is similar to a disabled one, if a filter operation will be fast (has index configured in EF), if a join will be fast (is IQueryable used),
-does the query take advantage of backend overrides, etc.
+Tool will try to solve the issue by providing as much information as possible about the performance of the new query, all from the TS type system:
+it can inform frontend about the expected performance of the query,
+if a new query is similar to a disabled one, if a filter operation will be fast (has index configured in EF), if a join will be fast (is IQueryable used),
+does the query take advantage of backend overrides, is the data loaded from a JSON column,  --DORADITI--  ,etc.
 On the backend, new endpoints will be compiled and recompiled to utilize "base" endpoints and overriden implementations
 as much as possible, derivatives of disabled endpoints will be auto-disabled, etc.
 Improvement of the compiler's performance will be the main focus of the future development,

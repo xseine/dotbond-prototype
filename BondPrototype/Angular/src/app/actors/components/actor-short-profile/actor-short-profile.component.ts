@@ -1,7 +1,7 @@
 import {Component, Input, OnInit} from '@angular/core';
 
 @Component({
-    selector: 'actor-short-profile',
+    selector: 'actor-avatar',
     template: `
         <img [src]="picture | safeUrl" alt="Actor's photo"/>
 

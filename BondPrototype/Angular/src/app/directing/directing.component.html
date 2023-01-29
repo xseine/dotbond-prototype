@@ -1,5 +1,7 @@
-<div *ngFor="let actorRating of actorsAverageRating">
-    <span>{{actorRating.actor.name}}</span>
-    <span>{{actorRating.average}}</span>
-    <span>{{actorRating.colleagues.join(', ')}}</span>
+<div [transition-group]="'flip-list'">
+    <div *ngFor="let actorRating of actorsAverageRating">
+        <span>{{actorRating.actor.name}}</span>
+        <span>{{actorRating.average}}</span>
+        <span>{{actorRating.colleagues.join(', ')}}</span>
+    </div>
 </div>
