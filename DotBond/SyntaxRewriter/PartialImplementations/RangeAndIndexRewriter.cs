@@ -58,7 +58,7 @@ public partial class Rewriter
 
     public override SyntaxNode VisitElementAccessExpression(ElementAccessExpressionSyntax node)
     {
-        var typeSymbol = GetSavedSymbol(node.Expression) ?? (SemanticModel.SyntaxTree.GetRoot().Contains(node.Expression) ? SemanticModel.GetTypeInfo(node.Expression).Type : null);
+        var typeSymbol = GetTypeSymbol(node.Expression);
 
         if (typeSymbol.Name == "GroupCollection")
         {

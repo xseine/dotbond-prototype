@@ -8,6 +8,7 @@ export class MovieResult {
     public releaseDate: Date;
     public moviePoster: string;
     public description: string;
+    public get savo() { return `Hello there..`; }
     public directedBy: MovieResult.Director;
     public actors: MovieResult.Actor[];
     public awards: MovieResult.Award[];

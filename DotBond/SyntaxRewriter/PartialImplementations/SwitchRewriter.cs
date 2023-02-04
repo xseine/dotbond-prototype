@@ -10,9 +10,7 @@ public partial class Rewriter
     public override SyntaxNode VisitSwitchExpression(SwitchExpressionSyntax node)
     {
         var hasSavedSymbols = TryGetSavedSymbolsToUse(ref node);
-
-        var leadingTrivia = node.Arms.First().GetLeadingTrivia().ToFullString();
-
+        
         var newArms = node.Arms.Select(arm =>
         {
             var isPattern = arm.Pattern is not DiscardPatternSyntax
@@ -30,9 +28,8 @@ public partial class Rewriter
 
         var ifStatements = newArms.Select(tuple => tuple.Condition != null ? SyntaxFactory.IfStatement(tuple.Condition, tuple.Expression) : tuple.Expression as StatementSyntax).ToList();
         ifStatements.Reverse();
-        var ifAggregate = ifStatements.Skip(1).Cast<IfStatementSyntax>().Aggregate(ifStatements.First().WithLeadingTrivia(leadingTrivia + "\t"),
-                (acc, curr) => curr.WithElse(SyntaxFactory.ElseClause(acc.WithLeadingTrivia(SyntaxFactory.Space)).WithLeadingTrivia("\n" + leadingTrivia + "\t")))
-            .WithLeadingTrivia(leadingTrivia + "\t");
+        var ifAggregate = ifStatements.Skip(1).Cast<IfStatementSyntax>().Aggregate(ifStatements.First(),
+                (acc, curr) => curr.WithElse(SyntaxFactory.ElseClause(acc.WithLeadingTrivia(SyntaxFactory.Space))));
 
         var overrideVisit = (IfStatementSyntax)base.VisitIfStatement((IfStatementSyntax)ifAggregate);
 

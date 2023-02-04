@@ -75,6 +75,7 @@ namespace ConsoleApp1.Common
                 
                 INamedTypeSymbol {IsGenericType: true} generic =>
                     $"{generic.Name}<{string.Join(", ", generic.TypeArguments.Select((arg, _) => ParseType(arg)))}>",
+                // INamedTypeSymbol nonGeneric => nonGeneric.Name,
                 _ => GetPrimitiveTsType(typeSymbol.Name) ?? (!typeSymbol.DeclaringSyntaxReferences.Any() ? "any" : typeSymbol.Name)
             };
             

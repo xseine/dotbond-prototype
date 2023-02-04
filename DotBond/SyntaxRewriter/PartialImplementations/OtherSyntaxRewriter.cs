@@ -20,7 +20,7 @@ public partial class Rewriter
 
         var (a, b, (c, d)) = (baseVisit.Type, new[] { 1, 2 }.ToList(), (1, 2));
         // a.
-        return baseVisit?.WithType(SyntaxFactory.IdentifierName("let").WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(SyntaxFactory.Space));
+        return baseVisit?.WithType(SyntaxFactory.IdentifierName("let "));
     }
 
     // Add "this" where needed
@@ -47,9 +47,7 @@ public partial class Rewriter
 
             return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                     SyntaxFactory.IdentifierName(symbol.ContainingSymbol.Name),
-                    node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia())
-                .WithLeadingTrivia(node.GetLeadingTrivia())
-                .WithTrailingTrivia(node.GetTrailingTrivia());
+                    node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia());
         }
 
         var isInsideObjectInitializer = parent.IsKind(SyntaxKind.SimpleAssignmentExpression) && (parent.Parent?.IsKind(SyntaxKind.ObjectInitializerExpression) ?? false);
@@ -57,9 +55,7 @@ public partial class Rewriter
         if (hasDotBeforeIt == false && isInsideObjectInitializer == false)
             return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                     SyntaxFactory.IdentifierName("this"),
-                    node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia())
-                .WithLeadingTrivia(node.GetLeadingTrivia())
-                .WithTrailingTrivia(node.GetTrailingTrivia());
+                    node.ChangeIdentifierToCamelCase().WithoutLeadingTrivia());
 
         return base.VisitIdentifierName(node).ChangeIdentifierToCamelCase();
     }
@@ -110,26 +106,20 @@ public partial class Rewriter
         var overrideVisit = (LocalFunctionStatementSyntax)base.VisitLocalFunctionStatement(node);
         if (overrideVisit.ExpressionBody != null)
         {
-            var leadingTrivia = overrideVisit.GetLeadingTrivia().LastOrDefault();
-            var lTrivia = leadingTrivia.IsKind(SyntaxKind.None)
-                ? SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed)
-                : SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed, leadingTrivia, leadingTrivia);
 
             // If return type method with expression body is "void", don't use return statement.
             if (node.ReturnType is PredefinedTypeSyntax { Keyword.Text: "void" })
                 overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
-                    .ExpressionStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
-                    .WithLeadingTrivia(lTrivia)));
+                    .ExpressionStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))));
             else
                 overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
-                    .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
-                    .WithLeadingTrivia(lTrivia)));
+                    .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))));
 
 
             overrideVisit = overrideVisit.WithExpressionBody(null);
         }
 
-        return overrideVisit.WithModifiers(default).WithReturnType(SyntaxFactory.ParseTypeName("function ")).WithLeadingTrivia(node.GetLeadingTrivia());
+        return overrideVisit.WithModifiers(default).WithReturnType(SyntaxFactory.ParseTypeName("function "));
     }
 
     // Removes type casting (int), (string), ...
@@ -327,7 +317,7 @@ public partial class Rewriter
             };
         }
 
-        return SyntaxFactory.ThrowStatement(SyntaxFactory.ParseExpression($" {message}")).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        return SyntaxFactory.ThrowStatement(SyntaxFactory.ParseExpression($" {message}"));
     }
 
     /// <summary>
@@ -352,7 +342,7 @@ public partial class Rewriter
             };
         }
 
-        return SyntaxFactory.ThrowExpression(SyntaxFactory.ParseExpression($" {message}")).WithLeadingTrivia(node.GetLeadingTrivia()).WithTrailingTrivia(node.GetTrailingTrivia());
+        return SyntaxFactory.ThrowExpression(SyntaxFactory.ParseExpression($" {message}"));
     }
 
     public override SyntaxNode VisitConditionalExpression(ConditionalExpressionSyntax node)

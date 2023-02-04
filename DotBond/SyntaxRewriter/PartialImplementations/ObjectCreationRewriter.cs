@@ -110,9 +110,6 @@ public partial class Rewriter
         };
 
         var openingBlockTrivia = node.ArgumentList?.GetTrailingTrivia() ?? node.Type.GetTrailingTrivia();
-        var fieldLeadingTrivia =
-            node.Initializer.Expressions.First().GetLeadingTrivia(); // node.Initializer.Expressions.First().GetLeadingTrivia().Prepend(SyntaxFactory.CarriageReturnLineFeed).ToList();
-        var leadingTriviaString = string.Join("", fieldLeadingTrivia);
 
         if (overrideVisit.Initializer.IsKind(SyntaxKind.CollectionInitializerExpression))
         {
@@ -173,7 +170,7 @@ public partial class Rewriter
                     ? overrideVisit.WithInitializer(null).WithLeadingTrivia(SyntaxFactory.Space).WithoutTrailingTrivia()
                     : SyntaxFactory.ParseExpression($"{{}} as {TypeTranslation.ParseType(node.Type, SemanticModel)}");
             var newLocalDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory.VariableDeclaration(
-                SyntaxFactory.IdentifierName("let").WithLeadingTrivia(fieldLeadingTrivia).WithTrailingTrivia(SyntaxFactory.Space),
+                SyntaxFactory.IdentifierName("let "),
                 new SeparatedSyntaxList<VariableDeclaratorSyntax>().Add(
                     SyntaxFactory.VariableDeclarator(SyntaxFactory.Identifier($"{iifeVarName} "), null,
                         SyntaxFactory.EqualsValueClause(a)))));
@@ -195,8 +192,7 @@ public partial class Rewriter
                 statements = statements.Add(SyntaxFactory.ExpressionStatement(assignmentExpressionSyntax.WithoutTrailingTrivia()).WithTrailingTrivia(trailingTrivias[idx++]));
             }
 
-            var returnStatement = SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName($" {iifeVarName}"))
-                .WithLeadingTrivia(fieldLeadingTrivia); //.WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
+            var returnStatement = SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName($" {iifeVarName}"));
 
             statements = statements.Add(returnStatement);
 
@@ -207,8 +203,7 @@ public partial class Rewriter
                 .WithTrailingTrivia(closingBlockTrivia);
             // .WithoutTrailingTrivia();
 
-            var closingTrivia = SyntaxFactory.TriviaList(fieldLeadingTrivia.SkipLast(1));
-            return CreateIIFE(node.GetLeadingTrivia(), blockStatement, closingTrivia);
+            return CreateIIFE(node.GetLeadingTrivia(), blockStatement, default);
         }
     }
 

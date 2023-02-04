@@ -6,7 +6,7 @@
 <!--            <sp-button style="display: none" slot="trigger" #trigger></sp-button>-->
             <actor-avatar
                     [data]="actor"
-                    [attr.active]="(selectedActorProfile$ | async)?.id == actor.id ? '' : null"
+                    [attr.active]="(selectedActorSubject | async) == actor.id ? '' : null"
                     slot="trigger"
                     #avatar
                     (click)="onActorClick(actor.id, $event)"

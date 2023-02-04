@@ -15,27 +15,39 @@ namespace DotBond.SyntaxRewriter.Core
     public abstract class AbstractAncestorRewriter : CSharpSyntaxRewriter
     {
         public List<(SyntaxKind[] ancestorKind, Func<SyntaxNode, SyntaxNode> rewriteFunc)> AncestorRewrites { get; } = new();
-        
+        public List<(SyntaxKind[] ancestorKind, Func<SyntaxNode, SyntaxNode, SyntaxNode> rewriteFunc)> AncestorRewritesWithOriginalNode { get; } = new();
+
         /// <summary>
         /// Buffers rewrites for a particular node, so they would get executed only after base visit completes, and not by some of node's children
         /// </summary>
-        public Dictionary<SyntaxNode, List<(SyntaxKind[] ancestorKind, Func<SyntaxNode, SyntaxNode> rewriteFunc)>> AncestorRewritesBuffer { get; } = new();
+        public Dictionary<SyntaxNode, List<(SyntaxKind[] ancestorKind, object rewriteFunc)>> AncestorRewritesBuffer { get; } = new();
 
         public Stack<SyntaxNode> ActiveNodeStack = new();
 
         protected AbstractAncestorRewriter(bool visitIntoStructuredTrivia = false) : base(visitIntoStructuredTrivia)
         {
-            
         }
-        
+
         public void RegisterAncestorRewrite(Func<SyntaxNode, SyntaxNode> rewriteFunc, params SyntaxKind[] ancestorKind)
         {
             if (ActiveNodeStack.Any())
             {
                 var node = ActiveNodeStack.Peek();
                 AncestorRewritesBuffer[node].Add((ancestorKind, rewriteFunc));
-            } else 
+            }
+            else
                 AncestorRewrites.Add((ancestorKind, rewriteFunc));
+        }
+        
+        public void RegisterAncestorRewrite(Func<SyntaxNode, SyntaxNode, SyntaxNode> rewriteFunc, params SyntaxKind[] ancestorKind)
+        {
+            if (ActiveNodeStack.Any())
+            {
+                var node = ActiveNodeStack.Peek();
+                AncestorRewritesBuffer[node].Add((ancestorKind, rewriteFunc));
+            }
+            else
+                AncestorRewritesWithOriginalNode.Add((ancestorKind, rewriteFunc));
         }
 
         public override SyntaxNode VisitExpressionStatement(ExpressionStatementSyntax node) => VisitAndRewrite(node);
@@ -56,10 +68,10 @@ namespace DotBond.SyntaxRewriter.Core
         protected SyntaxNode VisitAndRewrite(SyntaxNode node)
         {
             var syntaxKind = node.Kind();
-            
+
             ActiveNodeStack.Push(node);
-            AncestorRewritesBuffer[node] = new List<(SyntaxKind[] ancestorKind, Func<SyntaxNode, SyntaxNode> rewriteFunc)>();
-            
+            AncestorRewritesBuffer[node] = new List<(SyntaxKind[] ancestorKind, object rewriteFunc)>();
+
             var baseVisit = node switch
             {
                 ExpressionStatementSyntax syntax => base.VisitExpressionStatement(syntax),
@@ -79,28 +91,36 @@ namespace DotBond.SyntaxRewriter.Core
             };
 
             ActiveNodeStack.Pop();
-            AncestorRewrites.AddRange(AncestorRewritesBuffer[node]);
+            AncestorRewrites.AddRange(AncestorRewritesBuffer[node].Where(e => e.rewriteFunc is Func<SyntaxNode, SyntaxNode>)
+                .Select(e => (e.ancestorKind, (Func<SyntaxNode, SyntaxNode>)e.rewriteFunc)));
+            AncestorRewritesWithOriginalNode.AddRange(AncestorRewritesBuffer[node].Where(e => e.rewriteFunc is Func<SyntaxNode, SyntaxNode, SyntaxNode>)
+                .Select(e => (e.ancestorKind, (Func<SyntaxNode, SyntaxNode, SyntaxNode>)e.rewriteFunc)));
             AncestorRewritesBuffer.Remove(node);
-            
-            return ExecuteRewrites(baseVisit!, syntaxKind);
+
+            return ExecuteRewrites(node, baseVisit!, syntaxKind);
         }
-        
-        
+
+
         /// <summary>
         /// Executes rewrites registered for the provided SyntaxKind.
         /// </summary>
+        /// <param name="originalNode"></param>
         /// <param name="visitedSyntaxNode">Already visited syntax node (CSharpSyntaxRewriter)</param>
         /// <param name="kind">Used to find applicable rewrites from <see cref="AncestorRewrites"/>.</param>
         /// <returns></returns>
-        private SyntaxNode ExecuteRewrites(SyntaxNode visitedSyntaxNode, SyntaxKind kind)
+        private SyntaxNode ExecuteRewrites(SyntaxNode originalNode, SyntaxNode visitedSyntaxNode, SyntaxKind kind)
         {
             var registeredRewrites = AncestorRewrites.FindAll(rewrite => rewrite.ancestorKind.Contains(kind)).Select(rewrite => rewrite.rewriteFunc).ToList();
+            var registeredRewritesWithOriginalNode = AncestorRewritesWithOriginalNode.FindAll(rewrite => rewrite.ancestorKind.Contains(kind)).Select(rewrite => rewrite.rewriteFunc).ToList();
 
-            if (registeredRewrites.Any() == false) return visitedSyntaxNode;
+            if (registeredRewrites.Any() == false && registeredRewritesWithOriginalNode.Any() == false) return visitedSyntaxNode;
 
             AncestorRewrites.RemoveAll(rewrite => rewrite.ancestorKind.Contains(kind));
+            AncestorRewritesWithOriginalNode.RemoveAll(rewrite => rewrite.ancestorKind.Contains(kind));
 
-            return registeredRewrites.Aggregate(visitedSyntaxNode, (acc, curr) => acc == null ? null : curr(acc));
+            var result = registeredRewrites.Aggregate(visitedSyntaxNode, (acc, curr) => acc == null ? null : curr(acc));
+            result = registeredRewritesWithOriginalNode.Aggregate(result, (acc, curr) => acc == null ? null : curr(originalNode, acc));
+            return result;
         }
     }
 }

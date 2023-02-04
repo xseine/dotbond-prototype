@@ -17,8 +17,9 @@ public partial class Rewriter
         var overrideVisit = (IsPatternExpressionSyntax)base.VisitIsPatternExpression(node)!;
 
         var overridePattern = overrideVisit.Pattern;
-        if (overridePattern.IsKind(SyntaxKind.DiscardPattern)) return SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression, SyntaxFactory.Token(SyntaxKind.TrueKeyword));
-        
+        if (overridePattern.IsKind(SyntaxKind.DiscardPattern))
+            return SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression, SyntaxFactory.Token(SyntaxKind.TrueKeyword));
+
         var isNot = overridePattern is UnaryPatternSyntax { RawKind: (int)SyntaxKind.NotPattern };
         if (isNot) overridePattern = ((UnaryPatternSyntax)overridePattern).Pattern;
         ExpressionSyntax resultExpression = overrideVisit;
@@ -52,7 +53,8 @@ public partial class Rewriter
         {
             resultExpression = constant.Expression.IsKind(SyntaxKind.IdentifierName)
                 ? RewriteIsPattern(overrideVisit.Expression, overrideVisit.IsKeyword, constant.Expression)
-                : SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, overrideVisit.Expression, constant.Expression.WithLeadingTrivia(SyntaxFactory.Space));
+                : SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, overrideVisit.Expression,
+                    constant.Expression.WithLeadingTrivia(SyntaxFactory.Space));
         }
         else if (overridePattern is RelationalPatternSyntax relational)
         {
@@ -95,18 +97,22 @@ public partial class Rewriter
             .Select(propertyPattern =>
             {
                 // property name, prefixed with the path of that property
-                var path = patternPathOfIdentifiers.Count > 0 ? new String('(', patternPathOfIdentifiers.Count(e => e.EndsWith(")"))) + string.Join("?.", patternPathOfIdentifiers) + "?." : null;
+                var path = patternPathOfIdentifiers.Count > 0
+                    ? new String('(', patternPathOfIdentifiers.Count(e => e.EndsWith(")"))) + string.Join("?.", patternPathOfIdentifiers) + "?."
+                    : null;
                 var name = SyntaxFactory.ParseExpression(path + propertyPattern.NameColon.Name.Identifier.Text);
 
                 var newCondition = propertyPattern.Pattern switch
                 {
                     TypePatternSyntax or DeclarationPatternSyntax
-                        => RewriteIsPattern(name, (propertyPattern.Pattern as TypePatternSyntax)?.Type ?? ((DeclarationPatternSyntax)propertyPattern.Pattern).Type),
+                        => RewriteIsPattern(name,
+                            (propertyPattern.Pattern as TypePatternSyntax)?.Type ?? ((DeclarationPatternSyntax)propertyPattern.Pattern).Type),
                     ConstantPatternSyntax constant => SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, name, constant.Expression),
                     // "is not null"
                     UnaryPatternSyntax
                         {
-                            RawKind: (int)SyntaxKind.NotPattern, Pattern: ConstantPatternSyntax { Expression: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression } }
+                            RawKind: (int)SyntaxKind.NotPattern,
+                            Pattern: ConstantPatternSyntax { Expression: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression } }
                         }
                         => name,
                     _ => null
@@ -135,12 +141,15 @@ public partial class Rewriter
                         TypePatternSyntax or DeclarationPatternSyntax
                             => RewriteIsPattern(tupleArguments[idx].Expression,
                                 (positionalPattern.Pattern as TypePatternSyntax)?.Type ?? ((DeclarationPatternSyntax)positionalPattern.Pattern).Type),
-                        ConstantPatternSyntax constant => SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, tupleArguments[idx].Expression, constant.Expression),
-                        RelationalPatternSyntax relational => SyntaxFactory.BinaryExpression(GetSyntaxKindFromOperator(relational.OperatorToken), tupleArguments[idx].Expression, relational.Expression),
+                        ConstantPatternSyntax constant => SyntaxFactory.BinaryExpression(SyntaxKind.EqualsExpression, tupleArguments[idx].Expression,
+                            constant.Expression),
+                        RelationalPatternSyntax relational => SyntaxFactory.BinaryExpression(GetSyntaxKindFromOperator(relational.OperatorToken),
+                            tupleArguments[idx].Expression, relational.Expression),
                         // "is not null"
                         UnaryPatternSyntax
                             {
-                                RawKind: (int)SyntaxKind.NotPattern, Pattern: ConstantPatternSyntax { Expression: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression } }
+                                RawKind: (int)SyntaxKind.NotPattern,
+                                Pattern: ConstantPatternSyntax { Expression: LiteralExpressionSyntax { RawKind: (int)SyntaxKind.NullLiteralExpression } }
                             }
                             => tupleArguments[idx].Expression,
                         DiscardPatternSyntax => null,
@@ -150,23 +159,27 @@ public partial class Rewriter
                 var replacements = overrideVisit.PositionalPatternClause.Subpatterns
                     .Select((positionalPattern, idx) => positionalPattern.Pattern switch
                     {
-                        DeclarationPatternSyntax declaration => (((SingleVariableDesignationSyntax)declaration.Designation).Identifier.Text, tupleArguments[idx].Expression),
+                        DeclarationPatternSyntax declaration => (((SingleVariableDesignationSyntax)declaration.Designation).Identifier.Text,
+                            tupleArguments[idx].Expression),
                         VarPatternSyntax var => (((SingleVariableDesignationSyntax)var.Designation).Identifier.Text, tupleArguments[idx].Expression),
                         _ => null as (string, ExpressionSyntax)?
                     }).Where(e => e != null);
 
                 newConditionals = newConditionals.Where(e => e != null).ToList();
                 var combinedConditional = newConditionals.Any()
-                    ? newConditionals.Skip(1).Aggregate(newConditionals.First(), (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, acc, curr))
+                    ? newConditionals.Skip(1).Aggregate(newConditionals.First(),
+                        (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, acc, curr))
                     : null;
-                
+
                 RegisterAncestorRewrite(syntaxNode =>
                 {
                     var ifStatement = (IfStatementSyntax)syntaxNode;
                     if (combinedConditional != null)
-                        ifStatement = ifStatement.WithCondition(SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, ifStatement.Condition, combinedConditional));
+                        ifStatement = ifStatement.WithCondition(SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, ifStatement.Condition,
+                            combinedConditional));
 
-                    var rewriter = new VariableRewriter(new(replacements.Cast<(string, ExpressionSyntax)>().Select(tuple => new KeyValuePair<string, ExpressionSyntax>(tuple.Item1, tuple.Item2))));
+                    var rewriter = new VariableRewriter(new(replacements.Cast<(string, ExpressionSyntax)>()
+                        .Select(tuple => new KeyValuePair<string, ExpressionSyntax>(tuple.Item1, tuple.Item2))));
 
                     var overrideStatement = (StatementSyntax)rewriter.Visit(ifStatement.Statement);
                     var overrideCondition = (ExpressionSyntax)rewriter.Visit(ifStatement.Condition);
@@ -180,34 +193,42 @@ public partial class Rewriter
             return SyntaxFactory.DiscardPattern();
         }
 
-        var patternType = overrideVisit.Type;
-
-        SyntaxNode HandleRecursivePatternParents(SyntaxNode syntaxNode)
+        var originalType = node.Type != null ? TypeTranslation.ParseType(node.Type, SemanticModel) : null;
+        if (originalType == "")
         {
-            var originalType = patternType != null ? TypeTranslation.ParseType(patternType, SemanticModel) : null;
+            Console.WriteLine(node);
+            Console.WriteLine(SemanticModel);
+        }
 
+        SyntaxNode HandleRecursivePatternParents(SyntaxNode originalNode, SyntaxNode syntaxNode)
+        {
             if (syntaxNode is IsPatternExpressionSyntax isPattern)
             {
-                patternPathOfIdentifiers.Insert(0, originalType != null ? $"{isPattern.Expression.ToString()} as {originalType})" : isPattern.Expression.ToString());
+                patternPathOfIdentifiers.Insert(0,
+                    originalType != null ? $"{isPattern.Expression.ToString()} as {originalType})" : isPattern.Expression.ToString());
 
-                var (newConditionals, replacements) = deferredConditionalsAndReplacements.Aggregate((new List<ExpressionSyntax>(), new List<(string, ExpressionSyntax)?>()), (acc, curr) =>
-                {
-                    if (curr.newCondition != null) acc.Item1.Add(curr.newCondition);
-                    if (curr.declarationReplacement != null) acc.Item2.Add(curr.declarationReplacement);
-                    return acc;
-                });
+                var (newConditionals, replacements) = deferredConditionalsAndReplacements.Aggregate(
+                    (new List<ExpressionSyntax>(), new List<(string, ExpressionSyntax)?>()), (acc, curr) =>
+                    {
+                        if (curr.newCondition != null) acc.Item1.Add(curr.newCondition);
+                        if (curr.declarationReplacement != null) acc.Item2.Add(curr.declarationReplacement);
+                        return acc;
+                    });
 
                 var combinedConditional = newConditionals.Any()
-                    ? newConditionals.Skip(1).Aggregate(newConditionals.First(), (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, acc, curr))
+                    ? newConditionals.Skip(1).Aggregate(newConditionals.First(),
+                        (acc, curr) => SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, acc, curr))
                     : null;
 
                 RegisterAncestorRewrite(syntaxNode =>
                 {
                     var ifStatement = (IfStatementSyntax)syntaxNode;
                     if (combinedConditional != null)
-                        ifStatement = ifStatement.WithCondition(SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, ifStatement.Condition, combinedConditional));
+                        ifStatement = ifStatement.WithCondition(SyntaxFactory.BinaryExpression(SyntaxKind.LogicalAndExpression, ifStatement.Condition,
+                            combinedConditional));
 
-                    var rewriter = new VariableRewriter(new(replacements.Cast<(string, ExpressionSyntax)>().Select(tuple => new KeyValuePair<string, ExpressionSyntax>(tuple.Item1, tuple.Item2))));
+                    var rewriter = new VariableRewriter(new(replacements.Cast<(string, ExpressionSyntax)>()
+                        .Select(tuple => new KeyValuePair<string, ExpressionSyntax>(tuple.Item1, tuple.Item2))));
 
                     var overrideStatement = (StatementSyntax)rewriter.Visit(ifStatement.Statement);
                     var overrideCondition = (ExpressionSyntax)rewriter.Visit(ifStatement.Condition);
@@ -217,7 +238,21 @@ public partial class Rewriter
             else if (syntaxNode is SubpatternSyntax subpattern)
             {
                 patternPathOfIdentifiers.Insert(0, originalType != null ? $"{subpattern.NameColon.Name.Identifier.Text} as {originalType})" : null);
-                patternType = subpattern.Pattern is TypePatternSyntax typePatternSyntax ? typePatternSyntax.Type : (subpattern.Pattern as DeclarationPatternSyntax).Type;
+                // var patternType = subpattern.Pattern is TypePatternSyntax typePatternSyntax ? typePatternSyntax.Type : (subpattern.Pattern as DeclarationPatternSyntax).Type;
+                // var patternType = ((SubpatternSyntax)node.Parent).Pattern is TypePatternSyntax typePatternSyntax ? typePatternSyntax.Type : (((SubpatternSyntax)node.Parent).Pattern as DeclarationPatternSyntax).Type;
+                var patternType = ((SubpatternSyntax)originalNode).Pattern is RecursivePatternSyntax recursivePatternSyntax
+                    ? recursivePatternSyntax.Type
+                    : ((SubpatternSyntax)originalNode).Pattern is RecursivePatternSyntax typePatternSyntax
+                        ? typePatternSyntax.Type
+                        : (((SubpatternSyntax)originalNode).Pattern as DeclarationPatternSyntax).Type;
+                originalType = TypeTranslation.ParseType(patternType, SemanticModel);
+
+                if (originalType == "")
+                {
+                    Console.WriteLine(node);
+                    Console.WriteLine(SemanticModel);
+                }
+
                 RegisterAncestorRewrite(HandleRecursivePatternParents, SyntaxKind.IsPatternExpression, SyntaxKind.Subpattern);
             }
 

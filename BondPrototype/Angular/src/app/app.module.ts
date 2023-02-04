@@ -7,7 +7,7 @@ import {BrowserModule} from '@angular/platform-browser';
 // @ts-ignore
 import FilePondPluginGetFile from 'filepond-plugin-get-file';
 import {RouterModule, Routes} from '@angular/router';
-import {HttpClientModule, HttpClient} from '@angular/common/http';
+import {HttpClientModule, HttpClient, HTTP_INTERCEPTORS} from '@angular/common/http';
 import {ENVIRONMENT_PROVIDER} from '../core/services/enviroment.provider';
 import {environment} from '../environments/environment';
 import {ActorsComponent} from './actors/actors.component';
@@ -23,7 +23,6 @@ import {ActorShortProfileComponent} from './actors/components/actor-short-profil
 import {ConfigurationComponent} from './configuration/configuration.component';
 import {ActorFullProfileComponent} from './actors/components/actor-full-profile/actor-full-profile.component';
 import {ElipsisHoverComponent, ElipsisOnHoverDirective} from './actors/directives/elipsis-on-hover.directive';
-import {ReactiveComponentModule} from '@ngrx/component';
 import {BenchmarkComponent} from './benchmark/benchmark.component'
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {TooltipDirective, TooltipWrapperComponent} from './common/directives/tooltip.directive';
@@ -36,6 +35,7 @@ import {TranslateDemoComponent} from './translate-demo/translate-demo.component'
 ;
 import {TranslatedContentComponent} from './translate-demo/components/translated-content/translated-content.component'
 import {TransitionGroupComponent, TransitionGroupItemDirective} from "./common/directives/transition-group.directive";
+import {CacheBustInterceptor} from "./common/interceptors/cache-bust.interceptor";
 
 let routes: Routes = [
     {path: 'movies', component: MoviesComponent, resolve: {movies: MoviesResolverService}},
@@ -79,7 +79,6 @@ let routes: Routes = [
         CommonModule,
         HttpClientModule,
         RouterModule.forRoot(routes),
-        ReactiveComponentModule,
         FormsModule,
         ReactiveFormsModule,
         DragDropModule
@@ -88,7 +87,12 @@ let routes: Routes = [
         {
             provide: ENVIRONMENT_PROVIDER,
             useValue: environment
-        }
+        },
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: CacheBustInterceptor,
+            multi: true
+        },
     ], bootstrap: [AppComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

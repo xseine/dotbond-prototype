@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
+import {ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {IComponentHeaderText} from '../app.component';
 import {QueryService} from '../api/actions/query.service';
 import {
@@ -71,7 +71,7 @@ import {Picker} from "@spectrum-web-components/bundle";
     styleUrls: ['./directing.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DirectingComponent implements OnInit, IComponentHeaderText {
+export class DirectingComponent implements OnInit, OnDestroy, IComponentHeaderText {
     readonly headerText = 'Direct your own';
 
     unselectedActors$: Observable<{ name: string, id: number }[]>;
@@ -93,7 +93,10 @@ export class DirectingComponent implements OnInit, IComponentHeaderText {
         let selectedIds$ = this.actorPick.pipe(
             scan((acc, curr) => [...acc, curr], [] as number[]),
             switchMap(pickAcc => this.actorRemoval.pipe(
-                scan((acc, curr) => acc.filter(e => e != curr), pickAcc),
+                scan((acc, curr) => {
+                    acc.splice(acc.indexOf(curr), 1);
+                    return acc;
+                }, pickAcc),
                 startWith(pickAcc)
             )),
             share()
@@ -109,41 +112,26 @@ export class DirectingComponent implements OnInit, IComponentHeaderText {
 
                 let newIds = curr.filter(id => !acc.map(e => e.id).includes(id));
                 return combineLatest(...newIds.map(newId => this._api.GetShortProfileAndWorkStats(newId))).pipe(map(data => acc.concat(data)));
-            }, [] as ProfileAndStatsType[])
+            }, [] as ProfileAndStatsType[]),
+            switchMap(profilesAndStats => {
+                let order = profilesAndStats;
+                return this.joinColleagues.pipe(distinctUntilKeyChanged('actorId'), map(({actorId, colleagues}) => {
+                    let nonColleaguesBefore = order.slice(0, order.findIndex(e => e.id === actorId)).filter(e => !colleagues.includes(e.id));
+                    let nonColleaguesAfter = order.slice(order.findIndex(e => e.id === actorId) + 1).filter(e => !colleagues.includes(e.id));
+
+                    order = [...nonColleaguesBefore, ...order.filter(e => e.id === actorId || colleagues.includes(e.id)), ...nonColleaguesAfter];
+
+                    return [...order];
+                }), startWith(profilesAndStats));
+            }),
+            shareReplay(1)
         );
         
         this._cd.detectChanges();
-        
-        // this.actorSelection$ = of(null).pipe(
-        //     switchMap(actors => this.actorPick.pipe(
-        //             switchMap(id => _api.GetShortProfileAndWorkStats(id).pipe(          // Load profile and stats
-        //                 mergeWith(this.actorRemoval))),                                         // And subscribe to removal
-        //             scan((acc, curr) =>
-        //                 isNaN(curr as any)
-        //                     ? [...acc, curr as ProfileAndStatsType]
-        //                     : acc.filter(e => e.id !== curr), [] as ProfileAndStatsType[]),     // Either append the new actor, or remove an existing
-        //             map(profilesAndStats => ({listOfNames: actors.filter(e => profilesAndStats.every(ee => ee.id != e.id)), profilesAndStats})),    // Output a list of names and a list of stats
-        //             startWith({
-        //                 listOfNames: actors,
-        //                 profilesAndStats: []
-        //             })
-        //         )
-        //     ),
-        //     startWith({listOfNames: [], profilesAndStats: [] as ProfileAndStatsType[]}),
-        //     switchMap(e => {
-        //         let order = e.profilesAndStats;
-        //         return this.joinColleagues.pipe(distinctUntilKeyChanged('actorId'), map(({actorId, colleagues}) => {
-        //             let nonColleaguesBefore = order.slice(0, order.findIndex(e => e.id === actorId)).filter(e => !colleagues.includes(e.id));
-        //             let nonColleaguesAfter = order.slice(order.findIndex(e => e.id === actorId) + 1).filter(e => !colleagues.includes(e.id));
-        //
-        //             order = [...nonColleaguesBefore, ...order.filter(e => e.id === actorId || colleagues.includes(e.id)), ...nonColleaguesAfter];
-        //
-        //             return {...e, profilesAndStats: [...order]};
-        //         }), startWith(e));
-        //     }),
-        //     tap(_ => this.picker && (this.picker.nativeElement.value = null)),
-        //     shareReplay(1)
-        // )
+    }
+    
+    ngOnDestroy() {
+        this.actorPick.unsubscribe();
     }
 
     /*========================== Event Listeners ==========================*/

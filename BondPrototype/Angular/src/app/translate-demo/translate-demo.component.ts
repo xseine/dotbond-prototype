@@ -1,7 +1,28 @@
 import {AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, ViewChild} from '@angular/core';
 import {IComponentHeaderText} from '../app.component';
-import {catchError, debounceTime, filter, firstValueFrom, fromEvent, interval, merge, mergeWith, Observable, of, shareReplay, startWith, Subject, Subscription, switchMap, take, tap} from 'rxjs';
+import {
+    catchError,
+    debounceTime,
+    filter,
+    firstValueFrom,
+    fromEvent,
+    interval,
+    map,
+    merge,
+    mergeWith,
+    Observable,
+    of,
+    shareReplay,
+    startWith,
+    Subject,
+    Subscription,
+    switchMap,
+    take,
+    tap
+} from 'rxjs';
 import {QueryService} from '../api/actions/query.service';
+import prettier from 'prettier/esm/standalone.mjs';
+import parserTypescript from 'prettier/esm/parser-typescript.mjs';
 // @ts-ignore
 import objectCreationSource from './examples/object-creation.txt';
 // @ts-ignore
@@ -83,6 +104,7 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
             switchMap(_ => this._api.TranslateDemo.Post(this.csharpTextArea.nativeElement.value).pipe(catchError(_ => of('')))),
             // retry(1),
             tap(_ => this.isLoadingTranslation = false),
+            map(translation => this.formatTs(translation)),
             shareReplay(1)
         );
 
@@ -170,7 +192,7 @@ export class TranslateDemoComponent implements AfterViewInit, IComponentHeaderTe
         let options = {compilerOptions: {module: ts.ModuleKind.ES2015, target: ts.ScriptTarget.ES2017}};
 
         let jsSource = ts.transpileModule(tsSource, options).outputText as string;
-        
+
         let hasStaticMain = jsSource.match(/class (?<class>\w+) .+? static main/s);
         if (hasStaticMain) jsSource += '\n\n' + hasStaticMain.groups['class'] + '.main();'
 
@@ -278,6 +300,13 @@ console.log = function () {__result = [...__result, ...arguments];};
 
     createEvent(eventName: string): Event {
         return new Event(eventName);
+    }
+
+    private formatTs(source: string) {
+        return prettier.format(source, {
+            parser: "typescript",
+            plugins: [parserTypescript],
+        });
     }
 
 }

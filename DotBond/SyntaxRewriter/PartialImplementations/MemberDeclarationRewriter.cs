@@ -84,10 +84,7 @@ public partial class Rewriter
     public override SyntaxNode VisitFieldDeclaration(FieldDeclarationSyntax node)
     {
         var overrideVisit = (FieldDeclarationSyntax)base.VisitFieldDeclaration(node)!;
-
-        var leadingTrivia = overrideVisit.GetLeadingTrivia().LastOrDefault();
-        var trailingTrivia = overrideVisit.GetTrailingTrivia();
-
+        
         var field = overrideVisit.Declaration.Variables.First();
         var fieldWithNewName = field.WithIdentifier(
             SyntaxFactory.Identifier(field.Identifier.Text + ": " + TypeTranslation.ParseType(node.Declaration.Type, SemanticModel)));
@@ -100,8 +97,7 @@ public partial class Rewriter
 
         overrideVisit = overrideVisit
             .WithDeclaration(overrideVisit.Declaration.WithType(SyntaxFactory.ParseTypeName("")).WithVariables(SyntaxFactory.SeparatedList(new[] { fieldWithNewName })))
-            .WithLeadingTrivia(leadingTrivia)
-            .WithoutTrailingTrivia().WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)).WithTrailingTrivia(trailingTrivia)
+            .WithoutTrailingTrivia().WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
             .WithModifiers(modifiers);
 
         overrideVisit = overrideVisit.ChangeIdentifierToCamelCase();
@@ -114,25 +110,16 @@ public partial class Rewriter
     public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
         var overrideVisit = (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;
-
-        var leadingTrivia = overrideVisit.GetLeadingTrivia().LastOrDefault();
-        var trailingTrivia = overrideVisit.GetTrailingTrivia();
-
+        
         if (overrideVisit.ExpressionBody != null)
         {
-            var lTrivia = leadingTrivia.IsKind(SyntaxKind.None)
-                ? SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed)
-                : SyntaxFactory.TriviaList(SyntaxFactory.CarriageReturnLineFeed, leadingTrivia, leadingTrivia);
-            
             // If return type method with expression body is "void", don't use return statement.
             if (node.ReturnType is PredefinedTypeSyntax {Keyword.Text: "void"})
                 overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
-                .ExpressionStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
-                .WithLeadingTrivia(lTrivia)));
+                .ExpressionStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))));
             else
                 overrideVisit = overrideVisit.WithBody(SyntaxFactory.Block(SyntaxFactory
-                    .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))
-                    .WithLeadingTrivia(lTrivia)));
+                    .ReturnStatement(overrideVisit.ExpressionBody.Expression.WithLeadingTrivia(SyntaxFactory.Space))));
 
 
             overrideVisit = overrideVisit.WithExpressionBody(null);
@@ -142,11 +129,10 @@ public partial class Rewriter
 
         overrideVisit = overrideVisit
             .WithReturnType(SyntaxFactory.ParseTypeName(""))
-            .WithLeadingTrivia(leadingTrivia)
             .WithoutTrailingTrivia()
             .WithParameterList(overrideVisit.ParameterList.WithCloseParenToken(
                 CreateToken(SyntaxKind.CloseParenToken, parsedReturnType != null ? "): " + parsedReturnType : ") ")))
-            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)).WithTrailingTrivia(trailingTrivia)
+            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
             .ChangeIdentifierToCamelCase();
 
         return overrideVisit;

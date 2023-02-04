@@ -6,10 +6,12 @@
 export class TransitionGroupItemDirective {
     prevPos: any;
     prevIndex: number;
+    prevTop: number;
 
     newPos: any;
     newIndex: number;
-
+    newTop: number;
+    
     el: HTMLElement;
 
     moved: boolean;
@@ -32,15 +34,16 @@ export class TransitionGroupComponent {
     @ContentChildren(TransitionGroupItemDirective) items: QueryList<TransitionGroupItemDirective>;
 
     ngAfterContentInit() {
-        this.refreshPosition('prevPos', 'prevIndex');
+        this.refreshPosition('prevTop', 'prevIndex');
         this.items.changes.subscribe((items: TransitionGroupItemDirective[]) => {
             items.forEach(item => {
-                item.prevPos = item.newPos || item.prevPos || item.el.getBoundingClientRect();
+                item.prevPos = item.newPos ?? item.prevPos ?? item.el.getBoundingClientRect();
+                item.prevTop = item.newTop ?? item.prevTop ?? item.el.offsetTop;
                 item.prevIndex = item.newIndex != null ? item.newIndex : item.prevIndex != null ? item.prevIndex : Array.from(item.el.parentElement.children).indexOf(item.el);
             });
 
             items.forEach(this.runCallback);
-            this.refreshPosition('newPos', 'newIndex');
+            this.refreshPosition('newTop', 'newIndex');
             items.forEach(this.applyTranslation);
 
             // force reflow to put everything in position
@@ -63,8 +66,6 @@ export class TransitionGroupComponent {
         if (Math.abs(item.newIndex - item.prevIndex) > 0)
             cssClass += Math.abs(item.newIndex - item.prevIndex);
         
-        console.log(cssClass)
-        
         let el = item.el;
         let style: any = el.style;
         el.classList.add(cssClass);
@@ -80,15 +81,16 @@ export class TransitionGroupComponent {
 
     refreshPosition(prop: string, index: string) {
         this.items.forEach(item => {
-            item[prop] = item.el.getBoundingClientRect();
+            // item[prop] = item.el.getBoundingClientRect();
+            item[prop] = item.el.offsetTop;
             item[index] =  Array.from(item.el.parentElement.children).indexOf(item.el);
         });
     }
 
     applyTranslation(item: TransitionGroupItemDirective) {
         item.moved = false;
-        const dx = item.prevPos.left - item.newPos.left;
-        const dy = item.prevPos.top - item.newPos.top;
+        const dx = 0; // item.prevPos.left - item.newPos.left;
+        const dy = item.prevTop - item.newTop;
         if (dx || dy) {
             item.moved = true;
             let style: any = item.el.style;

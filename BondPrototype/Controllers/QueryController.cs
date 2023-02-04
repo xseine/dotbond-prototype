@@ -27,7 +27,7 @@ public class QueryController : QueryImplementations
     public override IQueryable<GetListOfActorNamesType> GetListOfActorNames() => base.GetListOfActorNames();
 
 
-    [HttpGet, ResponseCache(Duration = 3600, Location =ResponseCacheLocation.Any, VaryByQueryKeys = new[] {"*"})]
+    [HttpGet]
     public override GetBiographyType GetBiography(decimal actorId) => base.GetBiography(actorId);
 
 

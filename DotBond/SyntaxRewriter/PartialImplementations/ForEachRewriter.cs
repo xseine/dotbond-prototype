@@ -23,7 +23,7 @@ public partial class Rewriter
         var isDictionary = SemanticModel.GetTypeInfo(node.Expression).Type.Name == "Dictionary";
         if (isDictionary)
         {
-            overrideVisit = overrideVisit.WithExpression(SyntaxFactory.ParseExpression($"Object.entries({node.Expression.ToString()}).map(([key, value]) => ({{key, value}})"));
+            overrideVisit = overrideVisit.WithExpression(SyntaxFactory.ParseExpression($"Object.entries({node.Expression.ToString()}).map(([key, value]) => ({{key, value}}))"));
         }
 
         return overrideVisit;

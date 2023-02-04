@@ -9,6 +9,8 @@ public class MovieResult
     public string MoviePoster { get; set; }
     public string Description { get; set; }
 
+    public string Savo => $"Hello there..";
+
     public record struct Director(int Id, string Name, DateTime? DateOfBirth);
 
     public Director DirectedBy { get; set; }

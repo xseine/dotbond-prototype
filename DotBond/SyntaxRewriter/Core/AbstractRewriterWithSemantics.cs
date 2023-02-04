@@ -51,6 +51,9 @@ public class AbstractRewriterWithSemantics : AbstractAncestorRewriter
         }
     }
 
+    /// <summary>
+    /// Used to return symbols for programmatically constructed nodes, using string representations that should be identical as in the original, source, node.
+    /// </summary>
     protected ISymbol GetSavedSymbol(SyntaxNode node)
     {
         return _savedSymbolsFromOriginalTree.TryGetValue(node.ToString(), out var savedSymbol) ? savedSymbol : null;

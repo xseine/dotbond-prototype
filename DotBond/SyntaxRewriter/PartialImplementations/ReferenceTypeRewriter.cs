@@ -339,9 +339,7 @@ export namespace {nodeName} {{
             var parameters = string.Join(", ", compositeDeclarations.Select(e => e.Name + ": " + string.Join(" | ", e.Types.Distinct())));
             var returnType = string.Join(" | ",
                 declarations.Select(e => Regex.Match(e, @$"(?<=\w+{TsRegexRepository.MatchBrackets(BracketType.Parenthasis)}:\s*).+?(?=\s*;)").Value.TrimStart()).Distinct());
-
-            var leadingTrivia = csOverloads.First().GetLeadingTrivia().Last().ToFullString();
-
+            
             var maxParameters = csOverloads.Max(e => e.ParameterList.Parameters.Count);
             var parameterTuple =
                 SyntaxFactory.TupleExpression(CreateArgumentList(compositeDeclarations.Select(e => SyntaxFactory.IdentifierName(e.Name.Replace("?", "")) as ExpressionSyntax).ToArray()).Arguments);
@@ -361,7 +359,7 @@ export namespace {nodeName} {{
                                                                      ? "constructor"
                                                                      : (string)CamelCaseConversion.LowercaseWord(((dynamic)csOverload).Identifier))
                                                                  + (idx + (wasParameterlessConstructorAddedInOverride ? 1 : 0))),
-                            CreateArgumentList(compositeDeclarations.Select(e => SyntaxFactory.IdentifierName(e.Name.Replace("?", ""))).ToArray()))).WithLeadingTrivia(leadingTrivia + "\t")));
+                            CreateArgumentList(compositeDeclarations.Select(e => SyntaxFactory.IdentifierName(e.Name.Replace("?", ""))).ToArray())))));
 
             var switchExpression = SyntaxFactory.SwitchExpression(
                 parameterTuple,
@@ -369,10 +367,8 @@ export namespace {nodeName} {{
             );
 
             var expressionBody = isConstructorDeclaration
-                ? SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(switchExpression).WithLeadingTrivia("\n" + leadingTrivia + "\t"))
-                    .WithCloseBraceToken(CreateToken(SyntaxKind.CloseBraceToken, "\n" + leadingTrivia + "}"))
-                : SyntaxFactory.Block(SyntaxFactory.ReturnStatement(switchExpression).WithLeadingTrivia("\n" + leadingTrivia + "\t"))
-                    .WithCloseBraceToken(CreateToken(SyntaxKind.CloseBraceToken, "\n" + leadingTrivia + "}"));
+                ? SyntaxFactory.Block(SyntaxFactory.ExpressionStatement(switchExpression))
+                : SyntaxFactory.Block(SyntaxFactory.ReturnStatement(switchExpression));
 
 
             // Add super() in constructors, and remove it from other calls
@@ -380,7 +376,7 @@ export namespace {nodeName} {{
             {
                 expressionBody = expressionBody.WithStatements(
                     expressionBody.Statements.Insert(0,
-                        SyntaxFactory.ExpressionStatement(SyntaxFactory.InvocationExpression(SyntaxFactory.IdentifierName("super"))).WithLeadingTrivia("\n" + leadingTrivia + "\t")
+                        SyntaxFactory.ExpressionStatement(SyntaxFactory.InvocationExpression(SyntaxFactory.IdentifierName("super")))
                             .WithTrailingTrivia("\n")));
 
                 var superCalls = overrideVisit.DescendantNodes().OfType<ExpressionStatementSyntax>().Where(e => e.Expression is InvocationExpressionSyntax
@@ -403,10 +399,7 @@ export namespace {nodeName} {{
                     default,
                     visitedExpressionBody,
                     null
-                )
-                .WithLeadingTrivia(csOverloads.First().GetLeadingTrivia().Last(),
-                    SyntaxFactory.SyntaxTrivia(SyntaxKind.WhitespaceTrivia, string.Join("\n" + leadingTrivia, declarations) + "\n" + leadingTrivia))
-                .WithTrailingTrivia(csOverloads.First().GetTrailingTrivia().Append(SyntaxFactory.CarriageReturnLineFeed));
+                );
 
 
             var nodeToPlaceImplementationAfter = overrideVisit.DescendantNodes().OfType<BaseMethodDeclarationSyntax>()
@@ -432,7 +425,7 @@ export namespace {nodeName} {{
 
         var newMethod = SyntaxFactory.MethodDeclaration(
             new SyntaxList<AttributeListSyntax>(),
-            SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, node.GetLeadingTrivia().FirstOrDefault() + "public")),
+            SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword)),
             returnType,
             null,
             SyntaxFactory.Identifier($" {methodName} "),
@@ -442,7 +435,7 @@ export namespace {nodeName} {{
             overrideBody,
             overrideExpressionBody as ArrowExpressionClauseSyntax,
             CreateToken(SyntaxKind.SemicolonToken, ";")
-        ).WithTrailingTrivia(node.GetTrailingTrivia());
+        );
 
         return base.Visit(newMethod);
     }

@@ -82,7 +82,7 @@ public static class EndpointSignatureObservable
         var actionsObservable = fileObservable
             .ObserveChangedFiles(input =>
                 // ApiGenerator.GetActionsFromController(input.FileTree, input.SemanticModel)?.CheckForOutOfDateSignatures(fileObservable.Compilation) ?? false)
-                !input.FileTree.FilePath.EndsWith(EndpointGenInitializer.QueryImplementationsFile) && ApiGenerator.GetActionsFromController(input.FileTree, input.SemanticModel).Any())
+                !input.FileTree.FilePath.EndsWith(EndpointGenInitializer.QueryImplementationsFile) && ApiGenerator.RetrieveActionsFromController(input.FileTree, input.SemanticModel).Any())
             .Where(e => e);
         
         actionsObservable.Merge(implementationObservable)

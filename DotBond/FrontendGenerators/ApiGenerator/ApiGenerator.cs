@@ -33,47 +33,30 @@ public sealed class ApiGenerator : AbstractGenerator
     /// </summary>
     public override HashSet<TypeSymbolLocation> GetControllerCallback(FileAnalysisCallbackInput input)
     {
-        var actionSymbols = GetActionsFromController(input.FileTree, input.SemanticModel);
+        var actionSymbols = RetrieveActionsFromController(input.FileTree, input.SemanticModel);
 
         if (!actionSymbols.Any()) return null;
 
         var filePath = input.FileTree.FilePath;
-        var keysToRemove = _actions.Where(e => e.Value.FilePath == filePath).Select(e => e.Key).ToList();
-        keysToRemove.ForEach(key => _actions.Remove(key));
+        if (filePath == null) throw new Exception("Check it out. You need filepath for translationrecord");
+        
+        var previouslyRetrieved = _actions.Where(e => e.Value.FilePath == filePath).Select(e => e.Key).ToList();
+        previouslyRetrieved.ForEach(key => _actions.Remove(key));
 
         foreach (var actionSymbol in actionSymbols.Cast<IMethodSymbol>())
         {
-            // 1) Get parameter types
-            // TODO: provjeriti ovo
-            var parameterTypes = actionSymbol.Parameters.SelectMany(p => p.Type is INamedTypeSymbol { IsGenericType: true } type ? type.TypeArguments.ToArray() : new[] { p.Type }).ToList();
-
-            // 2) Get return type
+            var parameters = actionSymbol.Parameters.Select(p => (p.Name, p.Type, GetBindingAttribute(p))).ToList();
             var returnType = FindReturnTypeToUse(actionSymbol.ReturnType);
-
-            // 3) Get HTTP Method
             var httpMethod = actionSymbol.GetAttributes().Any(attribute => attribute.AttributeClass is { Name: "HttpPostAttribute" }) ? "POST" : "GET";
-
-            if (filePath == null)
-                throw new Exception("Check it out. You need filepath for translationrecord");
-
             var (route, usesSimpleRoute) = GetRouteFromTemplate(actionSymbol, httpMethod);
-
-            // 4) Register action
-            _actions[route] = (actionSymbol.Parameters.Select(p => (p.Name, p.Type, GetBindingAttribute(p))).ToList(), returnType, httpMethod, filePath, usesSimpleRoute);
-
-            // 5) Get types (if List, use generic parameter)
-            // typesInFile.AddRange(parameterTypes.Concat(returnType is INamedTypeSymbol { IsGenericType: true } type ? type.TypeArguments.ToArray() : new[] { returnType })
-            //     .Select(symbol => symbol is INamedTypeSymbol { IsGenericType: true, Name: "List" or "IList" or "IEnumerable" or "ICollection" } namedTypeSymbol ?
-            //         namedTypeSymbol.TypeArguments.First() :
-            //         symbol)
-            //     .Where(IsReferenceTypeForTranslation).ToList());
+            _actions[route] = (parameters, returnType, httpMethod, filePath, usesSimpleRoute);
         }
 
         CreateDefinitionsFile();
         CreateBackendEndpointsServiceFile();
         CreateReturnTypeDatesForConversionFile();
 
-        // Note: Logging these translation is an unnecessary complication 
+        // Note: Logging these translations is an unnecessary complication 
 
         return GetUsedTypes();
     }
@@ -93,9 +76,24 @@ public sealed class ApiGenerator : AbstractGenerator
     }
 
     /// <summary>
+    /// Actions = public methods with a non-void return type
+    /// </summary>
+    public static List<IMethodSymbol> RetrieveActionsFromController(SyntaxTree syntaxTree, SemanticModel semanticModel)
+    {
+        return syntaxTree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+            .Select(classSyntax => (INamedTypeSymbol)ModelExtensions.GetDeclaredSymbol(semanticModel, classSyntax)!)
+            .Where(RoslynUtilities.InheritsFromController)
+            .SelectMany(controllerSymbol =>
+                controllerSymbol.GetMembers().Where(symbol => symbol is IMethodSymbol { DeclaredAccessibility: Accessibility.Public, ReturnsVoid: false }))
+            .Cast<IMethodSymbol>()
+            .ToList();
+    }
+    /*========================== Private API ==========================*/
+
+    /// <summary>
     /// Gets types (and type arguments) of parameters and the return type for each action.
     /// </summary>
-    public HashSet<TypeSymbolLocation> GetUsedTypes()
+    private HashSet<TypeSymbolLocation> GetUsedTypes()
     {
         return _actions.Values
             .SelectMany(action =>
@@ -116,22 +114,7 @@ public sealed class ApiGenerator : AbstractGenerator
                 }
             }).ToHashSet();
     }
-
-    /// <summary>
-    /// Actions = public methods with a non-void return type
-    /// </summary>
-    public static List<IMethodSymbol> GetActionsFromController(SyntaxTree syntaxTree, SemanticModel semanticModel)
-    {
-        return syntaxTree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
-            .Select(classSyntax => (INamedTypeSymbol)ModelExtensions.GetDeclaredSymbol(semanticModel, classSyntax)!)
-            .Where(RoslynUtilities.InheritsFromController)
-            .SelectMany(controllerSymbol =>
-                controllerSymbol.GetMembers().Where(symbol => symbol is IMethodSymbol { DeclaredAccessibility: Accessibility.Public, ReturnsVoid: false }))
-            .Cast<IMethodSymbol>()
-            .ToList();
-    }
-    /*========================== Private API ==========================*/
-
+    
     /// <summary>
     /// Generate types for names, parameters and responses of actions.
     /// Also generates the required imports.

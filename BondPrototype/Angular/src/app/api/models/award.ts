@@ -1,6 +1,4 @@
-
-export enum AwardType
-{
-    Oscar,
-    Bafta
+export enum AwardType {
+  Oscar,
+  Bafta,
 }
