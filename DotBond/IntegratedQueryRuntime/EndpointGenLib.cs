@@ -211,7 +211,7 @@ public static class EndpointGenLib
             source = source.Replace(match, match[..^parameters.Length] + "(" + string.Join(", ", newParameters) + ")");
         }
 
-        source = new Regex(@"\)\.Value(\s*)\.").Replace(source, ").Value$1?.");
+        source = new Regex(@"\)\.Value(\s*)\.").Replace(source, ").Value$1?.", 1);
         source = new Regex(@": null\)(\s*)\.").Replace(source, ": null)$1?.");
 
 

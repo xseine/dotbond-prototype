@@ -47,16 +47,6 @@ export class MovieApiController {
         return ['year', '_'] as any;
     }
 
-    @method('GET')
-    FaultyQuery(): Observable<any[]> {
-        return [] as any;
-    }
-
-    @method('GET')
-    FaultyQueryMagical(): Observable<any[]> {
-        return [] as any;
-    }
-
 }
 
 export class NewController {

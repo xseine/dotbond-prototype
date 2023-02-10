@@ -1,10 +1,13 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Primitives;
 
 namespace DotBond.IntegratedQueryRuntime;
 
@@ -52,5 +55,47 @@ public static class IqMiddleware
 
         });
         return builder;
+    }
+}
+
+class QueryCollection : IQueryCollection
+{
+    private readonly Dictionary<string, StringValues> _queryCollection = new();
+
+    public QueryCollection() 
+    {
+    }
+
+    public QueryCollection(Dictionary<string, StringValues> store)
+    {
+        _queryCollection = store;
+    }
+
+    public StringValues this[string key] => _queryCollection.ContainsKey(key) ? _queryCollection[key] : new StringValues(string.Empty);
+
+    public int Count => _queryCollection.Count;
+
+    public ICollection<string> Keys => _queryCollection.Keys;
+
+    public bool ContainsKey(string key)
+    {
+        if (_queryCollection.ContainsKey(key))
+            return true;
+        return false;
+    }
+
+    public IEnumerator<KeyValuePair<string, StringValues>> GetEnumerator()
+    {
+        return _queryCollection.GetEnumerator();
+    }
+
+    public bool TryGetValue(string key, out StringValues value)
+    {
+        return _queryCollection.TryGetValue(key, out value);
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return _queryCollection.GetEnumerator();
     }
 }

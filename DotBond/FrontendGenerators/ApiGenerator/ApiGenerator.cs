@@ -47,8 +47,8 @@ public sealed class ApiGenerator : AbstractGenerator
         {
             var parameters = actionSymbol.Parameters.Select(p => (p.Name, p.Type, GetBindingAttribute(p))).ToList();
             var returnType = FindReturnTypeToUse(actionSymbol.ReturnType);
-            var httpMethod = actionSymbol.GetAttributes().Any(attribute => attribute.AttributeClass is { Name: "HttpPostAttribute" }) ? "POST" : "GET";
-            var (route, usesSimpleRoute) = GetRouteFromTemplate(actionSymbol, httpMethod);
+            var httpMethod = GetActionMethod(actionSymbol);
+            var (route, usesSimpleRoute) = GetRouteFromTemplate(actionSymbol);
             _actions[route] = (parameters, returnType, httpMethod, filePath, usesSimpleRoute);
         }
 
@@ -88,6 +88,19 @@ public sealed class ApiGenerator : AbstractGenerator
             .Cast<IMethodSymbol>()
             .ToList();
     }
+    
+    public static (string Route, bool UsesSimpleRoute) GetRouteFromTemplate(IMethodSymbol actionSymbol)
+    {
+        var isNameUsedInRoute = ((INamedTypeSymbol)actionSymbol.ContainingSymbol).GetAttributes()
+            .All(e => e.AttributeClass is not { Name: "RouteAttribute" } || !e.ConstructorArguments.First().Value!.Equals("[controller]"));
+
+        var httpMethod = GetActionMethod(actionSymbol);
+        var secondPartOfRoute = isNameUsedInRoute ? actionSymbol.Name : httpMethod[0] + httpMethod[1..].ToLower();
+
+        var fullRoute = actionSymbol.ContainingSymbol.Name + "/" + secondPartOfRoute;
+        return (fullRoute, !isNameUsedInRoute);
+    }
+    
     /*========================== Private API ==========================*/
 
     /// <summary>
@@ -222,17 +235,6 @@ export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}
         FrontendDirectoryController.WriteToAngularDirectory(_returnTypeDatesPath, fileContentSb.ToString());
     }
 
-    private static (string, bool) GetRouteFromTemplate(IMethodSymbol actionSymbol, string httpMethod)
-    {
-        var isNameUsedInRoute = ((INamedTypeSymbol)actionSymbol.ContainingSymbol).GetAttributes()
-            .All(e => e.AttributeClass is not { Name: "RouteAttribute" } || !e.ConstructorArguments.First().Value!.Equals("[controller]"));
-
-        var secondPartOfRoute = isNameUsedInRoute ? actionSymbol.Name : httpMethod[0] + httpMethod[1..].ToLower();
-
-        var fullRoute = actionSymbol.ContainingSymbol.Name + "/" + secondPartOfRoute;
-        return (fullRoute, !isNameUsedInRoute);
-    }
-
     private static string GetBindingAttribute(IParameterSymbol p)
     {
         return p.GetAttributes().FirstOrDefault(a => a.AttributeClass is { Name: "FromBodyAttribute" or "FromUri" })?.AttributeClass?.Name[..^"Attribute".Length];
@@ -273,4 +275,6 @@ export const dateFieldsInReturnTypes: {[key: string]: {[key2: string]: string[]}
                     : taskSymbol.TypeArguments.First()
                 : returnTypeSymbol;
     }
+
+    private static string GetActionMethod(IMethodSymbol actionSymbol) => actionSymbol.GetAttributes().Any(attribute => attribute.AttributeClass is { Name: "HttpPostAttribute" }) ? "POST" : "GET";
 }

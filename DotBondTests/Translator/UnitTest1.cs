@@ -13,7 +13,7 @@ using DotBond.IntegratedQueryRuntime;
 
 namespace DotBondTests;
 
-public class Tests
+public class TranslatorUnitTests
 {
     private static string[] _sources = Directory.GetFiles("TestSources").ToArray();
     private string _jsImports = File.ReadAllText("utilities.js") + "\n" + File.ReadAllText("date-format.js");

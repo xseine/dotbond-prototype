@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
 
@@ -18,10 +18,10 @@
         <PackageIcon>package-icon.png</PackageIcon>
         <PackageTags>query typescript api</PackageTags>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+        <LangVersion>11</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
         <PackageReference Include="Microsoft.Build.Locator" Version="1.5.5" />
         <PackageReference Include="Microsoft.CodeAnalysis" Version="4.3.0" />

@@ -63,7 +63,7 @@ public static class EndpointGenInitializer
             .Subscribe(_ =>
             {
                 IqLogger.LogTime();
-                Console.WriteLine($"Translation done. {DateTime.Now.TimeOfDay:g}");
+                Console.WriteLine($"Updated queries' implementations. ({DateTime.Now.TimeOfDay:g})");
             }, (e) =>
             {
                 Console.WriteLine("");
@@ -75,7 +75,6 @@ public static class EndpointGenInitializer
 
         // Save from disposing
         _fileSystemWatcher = watcher;
-        Console.WriteLine($"Watching {ApiGenerator.QueryServicePath}...");
     }
 
     private static FileSystemWatcher InitializeTsWatcher()

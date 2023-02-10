@@ -50,8 +50,8 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-        return movieApi.GetActors()
-            .Select(actor => new GetShortProfilesOfActorsType {
+        return movieApi.GetActors().Value
+            ?.Select(actor => new GetShortProfilesOfActorsType {
                     Id = actor.Id,
                     Picture = actor.Picture,
                     Name = actor.Name,
@@ -70,8 +70,8 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-        return movieApi.GetActors()
-            .Where(actor => actor.Id == actorId)
+        return movieApi.GetActors().Value
+            ?.Where(actor => actor.Id == actorId)
             .Select(actor => new GetBiographyType {
                 Biography = actor.Biography,
                 Movies = actor.ActedIn.Select(movie => movie.Title)
@@ -83,8 +83,8 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-        return movieApi.GetActors()
-            .Where(actor => actor.Id == actorId)
+        return movieApi.GetActors().Value
+            ?.Where(actor => actor.Id == actorId)
             .Select(actor => new GetBiography2Type {
                 Biography = actor.Biography,
                 Movies = actor.ActedIn.Select(movie => movie.Title)
@@ -96,11 +96,11 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-        return movieApi.GetActors()
-            .Select(actor => new {
+        return movieApi.GetActors().Value
+            ?.Select(actor => new {
                 Id = actor.Id,
                 Average = actor.ActedIn.Select(e => e.Rating).Sum(e => e) / actor.ActedIn.Count,
-                Colleagues = movieApi.GetActors()
+                Colleagues = movieApi.GetActors().Value
                     .Where(potentialColleague => potentialColleague.ActedIn.Any(e => actor.ActedIn.Select(e => e.Id).Contains(e.Id)))
                     .Select(e => new GetShortProfileAndWorkStatsType.AnonymousSubType1 {Name = e.Name, Id = e.Id})
                     .Where(e => e.Id != actor.Id).ToList()

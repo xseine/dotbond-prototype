@@ -58,7 +58,7 @@ export class QueryServiceLock {
             })).findAsync();
     }
 
-    // aaaaaaaaaaa
+    // aaaaaaaaaaaaa
     @lockedQuery
     public GetBiography2(actorId: number) {
         return this.ctx.MovieApi.GetActors()
@@ -99,7 +99,7 @@ export class QueryServiceLock {
         return this.MyCustomQuery();
     }
     
-    // aaaaaa
+    // aaaaaaa
     @lockedQuery
     public AnotherOne(year: number) {
         return this.ctx.MovieApi.GetMoviesFromAYear(year, '').filter(movie => movie.awards.length && !movie.awards.length).toListAsync();

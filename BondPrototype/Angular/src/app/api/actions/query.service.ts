@@ -80,7 +80,7 @@ export class QueryService extends BaseEndpointsService {
             })).findAsync();
     }
 
-    // aaaaaaaaaaa
+    // aaaaaaaaaaaaa
     @customQuery
     public GetBiography2(actorId: number) {
         return this.ctx.MovieApi.GetActors()
@@ -121,7 +121,7 @@ export class QueryService extends BaseEndpointsService {
         return this.MyCustomQuery();
     }
     
-    // aaaaaa
+    // aaaaaaa
     @customQuery
     public AnotherOne(year: number) {
         return this.ctx.MovieApi.GetMoviesFromAYear(year, '').filter(movie => movie.awards.length && !movie.awards.length).toListAsync();

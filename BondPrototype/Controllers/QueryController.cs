@@ -20,23 +20,7 @@ public class QueryController : QueryImplementations
 
 
     [HttpGet]
-    public override IQueryable<GetShortProfilesOfActorsType> GetShortProfilesOfActors() => base.GetShortProfilesOfActors();
-
-
-    [HttpGet]
     public override IQueryable<GetListOfActorNamesType> GetListOfActorNames() => base.GetListOfActorNames();
-
-
-    [HttpGet]
-    public override GetBiographyType GetBiography(decimal actorId) => base.GetBiography(actorId);
-
-
-    [HttpGet]
-    public override GetBiography2Type GetBiography2(decimal actorId) => base.GetBiography2(actorId);
-
-
-    [HttpGet]
-    public override GetShortProfileAndWorkStatsType GetShortProfileAndWorkStats(decimal actorId) => base.GetShortProfileAndWorkStats(actorId);
 
 
     [HttpGet]
@@ -61,6 +45,22 @@ public class QueryController : QueryImplementations
 
 	[HttpGet]
     public override IEnumerable<MyQuery3Type> MyQuery3() => base.MyQuery3();
+
+
+	[HttpGet]
+    public override IQueryable<GetShortProfilesOfActorsType> GetShortProfilesOfActors() => base.GetShortProfilesOfActors();
+
+
+	[HttpGet]
+    public override GetBiographyType GetBiography(decimal actorId) => base.GetBiography(actorId);
+
+
+	[HttpGet]
+    public override GetBiography2Type GetBiography2(decimal actorId) => base.GetBiography2(actorId);
+
+
+	[HttpGet]
+    public override GetShortProfileAndWorkStatsType GetShortProfileAndWorkStats(decimal actorId) => base.GetShortProfileAndWorkStats(actorId);
 
 
 }

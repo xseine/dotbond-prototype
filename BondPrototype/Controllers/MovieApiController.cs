@@ -43,9 +43,11 @@ public class MovieApiController : ControllerBase
     }
     
     [HttpGet]
-    public IQueryable<PersonResult> GetActors()
+    public ActionResult<IQueryable<PersonResult>> GetActors()
     {
-        return _db.Persons.Where(person => person.ActedIn.Any()).Include(e => e.ActedIn).Select(actor => new PersonResult
+        // hejasa
+        
+        var a = _db.Persons.Where(person => person.ActedIn.Any()).Include(e => e.ActedIn).Select(actor => new PersonResult
         {
             Id = actor.Id,
             Name = actor.Name,
@@ -55,6 +57,9 @@ public class MovieApiController : ControllerBase
             Directed = actor.Directed.Select(movie => new PersonResult.DirectedOrActedInMovie(movie.Id, movie.Title, movie.Rating, movie.ReleaseDate)).ToList(),
             ActedIn = actor.ActedIn.Select(movie => new PersonResult.DirectedOrActedInMovie(movie.Id, movie.Title, movie.Rating, movie.ReleaseDate)).ToList()
         });
+
+        // return a;
+        return new ActionResult<IQueryable<PersonResult>>(a);
     }
     
     [HttpGet]
@@ -93,67 +98,67 @@ public class MovieApiController : ControllerBase
     }
 
 
-    [HttpGet]
-    public ActionResult<IEnumerable<object>> FaultyQuery()
-    {
-        return _db.Movies
-            .Include(e => e.DirectedBy)
-            .Include(e => e.Actors)
-            .GroupJoin(
-                inner: _db.Persons
-                    .Where(person => person.Directed
-                        .AsQueryable()
-                        .Any())
-                    .Include(e => e.Directed),
-                outerKeySelector: e => e.DirectedBy.Id,
-                innerKeySelector: e => e.Id,
-                resultSelector: (movie, directors) => new
-                {
-                    Id = movie.Id,
-                    Title = movie.Title,
-                    Rating = movie.Rating,
-                    ReleaseDate = movie.ReleaseDate,
-                    DirectedBy = movie.DirectedBy,
-                    Actors = movie.Actors,
-                    MovieTitle = movie.Title.ToLower(),
-                    DirectorName = directors
-                        .AsQueryable()
-                        .Where(_ => true)
-                        .Select(s => s.Name)
-                        .First()
-                }
-            ).ToList();
-    }
-
-    
-    [HttpGet]
-    public ActionResult<IEnumerable<object>> FaultyQueryMagical()
-    {
-        return _db.Movies
-            .Include(e => e.DirectedBy)
-            .Include(e => e.Actors)
-            .Select(e => new
-            {
-                movie = e,
-                directors = _db.Persons.Where(person => person.Id == e.DirectedBy.Id).ToList()
-            })
-            .Select(e => new
-                {
-                    Id = e.movie.Id,
-                    Title = e.movie.Title,
-                    Rating = e.movie.Rating,
-                    ReleaseDate = e.movie.ReleaseDate,
-                    DirectedBy = e.movie.DirectedBy,
-                    Actors = e.movie.Actors,
-                    MovieTitle = e.movie.Title.ToLower(),
-                    DirectorName = e.directors
-                        .AsQueryable()
-                        .Where(_ => true)
-                        .Select(s => s.Name)
-                        .First()
-                }
-            ).ToList();
-    }
+    // [HttpGet]
+    // public ActionResult<IEnumerable<object>> FaultyQuery()
+    // {
+    //     return _db.Movies
+    //         .Include(e => e.DirectedBy)
+    //         .Include(e => e.Actors)
+    //         .GroupJoin(
+    //             inner: _db.Persons
+    //                 .Where(person => person.Directed
+    //                     .AsQueryable()
+    //                     .Any())
+    //                 .Include(e => e.Directed),
+    //             outerKeySelector: e => e.DirectedBy.Id,
+    //             innerKeySelector: e => e.Id,
+    //             resultSelector: (movie, directors) => new
+    //             {
+    //                 Id = movie.Id,
+    //                 Title = movie.Title,
+    //                 Rating = movie.Rating,
+    //                 ReleaseDate = movie.ReleaseDate,
+    //                 DirectedBy = movie.DirectedBy,
+    //                 Actors = movie.Actors,
+    //                 MovieTitle = movie.Title.ToLower(),
+    //                 DirectorName = directors
+    //                     .AsQueryable()
+    //                     .Where(_ => true)
+    //                     .Select(s => s.Name)
+    //                     .First()
+    //             }
+    //         ).ToList();
+    // }
+    //
+    //
+    // [HttpGet]
+    // public ActionResult<IEnumerable<object>> FaultyQueryMagical()
+    // {
+    //     return _db.Movies
+    //         .Include(e => e.DirectedBy)
+    //         .Include(e => e.Actors)
+    //         .Select(e => new
+    //         {
+    //             movie = e,
+    //             directors = _db.Persons.Where(person => person.Id == e.DirectedBy.Id).ToList()
+    //         })
+    //         .Select(e => new
+    //             {
+    //                 Id = e.movie.Id,
+    //                 Title = e.movie.Title,
+    //                 Rating = e.movie.Rating,
+    //                 ReleaseDate = e.movie.ReleaseDate,
+    //                 DirectedBy = e.movie.DirectedBy,
+    //                 Actors = e.movie.Actors,
+    //                 MovieTitle = e.movie.Title.ToLower(),
+    //                 DirectorName = e.directors
+    //                     .AsQueryable()
+    //                     .Where(_ => true)
+    //                     .Select(s => s.Name)
+    //                     .First()
+    //             }
+    //         ).ToList();
+    // }
     
 
 }
