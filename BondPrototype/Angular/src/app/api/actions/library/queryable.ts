@@ -9,10 +9,18 @@
 
 import {combineLatest, map, Observable, of, OperatorFunction, switchMap, tap} from 'rxjs';
 import {accessUsingPath, EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER, evaluateInnerObservables, PrimitiveKey, queryInstanceId, sortAscCmp, sortDescCmp} from './miscellaneous';
+import {ClientSide, CombineQuery} from "../execution-rules";
 
 type InferTElement<T> = (T extends (infer TElement)[] ? TElement : T);
+export interface ClientQuery {
+    client: 1
+}
 
-export interface IQueryable<T> {
+export interface ServerQuery {
+    server: 1
+}
+
+export interface IQueryable<T, ExecutionInsight = void> {
 
     /**
      * Projects each element of a sequence into a new form.
@@ -55,9 +63,9 @@ export interface IQueryable<T> {
      * @param innerKey Join key from each element of the second sequence.
      * @param resultSelector A function to create a result element from two matching elements.
      */
-    join: <TInner, TResult>(inner: () => IQueryable<TInner[]>, key: PrimitiveKey<InferTElement<T>>,
+    join: <TInner, TResult, InnerExecutionInsight>(inner: () => IQueryable<TInner[], InnerExecutionInsight>, key: PrimitiveKey<InferTElement<T>>,
                             innerKey: PrimitiveKey<TInner>,
-                            resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult) => IQueryable<TResult[]>;
+                            resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult) => IQueryable<TResult[], CombineQuery<ExecutionInsight, InnerExecutionInsight>>;
 
     /**
      * Correlates the elements of two sequences based on key equality and groups the results.
@@ -93,7 +101,7 @@ export interface IQueryable<T> {
     /**
      * Same as toList, except it uses the correct return type.
      */
-    toListAsync: () => Observable<T>;
+    toListAsync: () => ExecutionInsight extends ClientSide ? ClientQuery & Observable<T> : ServerQuery & Observable<T>;
 }
 
 
@@ -101,7 +109,7 @@ export interface IQueryable<T> {
  * Client-side query engine
  */
 // @ts-ignore
-export class Queryable<T extends any[]> implements IQueryable<T> {
+export class Queryable<T extends any[], ExecutionInsight = void> implements IQueryable<T, ExecutionInsight> {
 
     /**
      * A list of properties that are accessed from objects returned by the find() function.
@@ -185,7 +193,7 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
         return this as any;
     }
 
-    join<TInner, TResult>(inner: () => IQueryable<TInner[]>, key: PrimitiveKey<InferTElement<T>>, innerKey: PrimitiveKey<TInner>, resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult): IQueryable<TResult[]> {
+    join<TInner, TResult, InnerExecutionInsight>(inner: () => IQueryable<TInner[], InnerExecutionInsight>, key: PrimitiveKey<InferTElement<T>>, innerKey: PrimitiveKey<TInner>, resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult): IQueryable<TResult[], CombineQuery<ExecutionInsight, InnerExecutionInsight>> {
 
         // This join applies resultSelector to every outer-inner pair
         this._queryOperatorsToApply.push(switchMap(outerData => {
@@ -258,7 +266,7 @@ export class Queryable<T extends any[]> implements IQueryable<T> {
         return this.findPrivate(predicate, false);
     }
 
-    toListAsync(): Observable<T> {
+    toListAsync(): ExecutionInsight extends ClientSide ? ClientQuery & Observable<T> : ServerQuery & Observable<T> {
         return this.toList() as any;
     }
 

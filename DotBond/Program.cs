@@ -3,6 +3,7 @@ using System.Reactive.Subjects;
 using Microsoft.CodeAnalysis;
 using DotBond;
 using DotBond.Generators;
+using DotBond.Generators.QueryCheckerGenerator;
 using DotBond.IntegratedQueryRuntime;
 using DotBond.Misc;
 using DotBond.Workspace;
@@ -24,9 +25,9 @@ var fileObservable = new FileObservable(csprojPath);
 Console.WriteLine("Compiled the project successfully.");
 
 // Frontend generators that provide callbacks to analyze file file observable outputs
-var generators = new List<AbstractGenerator> { new ApiGenerator(FileObservable.ASSEMBLY_NAME) };
+var generators = new List<AbstractGenerator> { new ApiGenerator(FileObservable.ASSEMBLY_NAME), new QueryCheckerGenerator(FileObservable.ASSEMBLY_NAME, fileObservable.Compilation) };
 
-var importedSymbolsAggregate = new Dictionary<string, List<ITypeSymbol>>();
+var trackedFileImports = new List<string>();
 var translatedSymbolsAggregate = new Dictionary<string, List<(string identifierName, string translation)>>();
 
 var initialFiles = fileObservable.GetAllCsFiles().Select(fileObservable.CreateCallbackInput);
@@ -87,10 +88,10 @@ generators.Select(generator =>
 
                 var attributesInFile = new HashSet<string>();
 
-                var shouldCaptureReferences = !importedSymbolsAggregate.ContainsKey(sourcePath);
+                var shouldCaptureReferences = !trackedFileImports.Contains(sourcePath);
                 if (shouldCaptureReferences)
                 {
-                    importedSymbolsAggregate[sourcePath] = new List<ITypeSymbol>();
+                    trackedFileImports.Add(sourcePath);
                     translatedSymbolsAggregate[sourcePath] = new List<(string identifierName, string translation)>();
                 }
 
@@ -100,11 +101,8 @@ generators.Select(generator =>
                     attributesInFile.UnionWith(attributes);
 
                     importedSymbols = importedSymbols.ToList();
-                    importedSymbolsAggregate[sourcePath].AddRange(importedSymbols);
 
                     usedTypesSubject.OnNext((importedSymbols.Any() ? importedSymbols.Select(e => e.GetLocation()).ToList() : null, referencedTypeSymbol.GetLocation()));
-                    // foreach (var importedSymbol in importedSymbols)
-                    //     usedTypesSubject.OnNext(new UsedTypeSymbolLocation(importedSymbol.GetLocation(), referencedTypeSymbol.GetLocation()));
 
                     // Translation is added after all of its imports are translated, because order of declarations matters in TS
                     if (translatedSymbolsAggregate[sourcePath].All(e => e.identifierName != referencedTypeSymbol.GetSymbolFullName()))
@@ -114,7 +112,6 @@ generators.Select(generator =>
                 if (shouldCaptureReferences)
                 {
                     FrontendDirectoryController.WriteToAMirroredPath(sourcePath, string.Join("\n", translatedSymbolsAggregate[sourcePath].Select(e => e.translation)));
-                    // var a = importedSymbolsAggregate[sourcePath].Select(s => (s.Name, s.GetSourceFile())).ToList();
                     var b = usedTypesCollection.Where(e => e.UsingTypeLocation?.FilePath == sourcePath)
                         .Select(e => (e.Location.FullName[(e.Location.FullName.LastIndexOf(".") + 1)..], e.Location.FilePath)).ToList();
                     FrontendDirectoryController.AddImportStatementsToFile(sourcePath, b
@@ -124,8 +121,7 @@ generators.Select(generator =>
                     TranslationLogger.LogTranslation(sourcePath[(backendRoot.Length + 1)..], translatedSymbolsAggregate[sourcePath].Select(e => e.identifierName));
                     DependencyLogger.LogDependencies(usedTypesCollection);
 
-                    // var a = usedTypesCollection.Where(e => e.UsingTypeLocation?.FilePath == sourcePath);
-                    importedSymbolsAggregate.Remove(sourcePath);
+                    trackedFileImports.Remove(sourcePath);
                     translatedSymbolsAggregate.Remove(sourcePath);
                 }
             });

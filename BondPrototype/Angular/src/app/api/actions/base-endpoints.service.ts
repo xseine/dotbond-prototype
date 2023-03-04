@@ -13,6 +13,7 @@ import {HttpClient} from '@angular/common/http';
 import {MovieApiController, NewController, TranslateDemoController} from "./controller-definitions";
 import {implementHttpCallsInController} from './library/miscellaneous';
 import {IQueryable} from './library/queryable';
+import {ExecutionInsights} from './execution-rules';
 /**
  * Class that provides methods for making http requests to backend API.
  * Properties, representing backend controllers, are objects that contain
@@ -57,7 +58,7 @@ export class EndpointsContext {
 }
 
 // @ts-ignore
-function createQueryableController<TController>(controllerName: string, controller: TController, endpointsService: BaseEndpointsService): { [TAction in keyof TController]: (...args: Parameters<TController[TAction]>) => IQueryable<ReturnType<TController[TAction]> extends Observable<infer U> ? U : never> } {
+function createQueryableController<TController>(controllerName: string, controller: TController, endpointsService: BaseEndpointsService): { [TAction in keyof TController]: (...args: Parameters<TController[TAction]>) => IQueryable<ReturnType<TController[TAction]> extends Observable<infer U> ? U : never, ExecutionInsights[TAction]> } {
     implementHttpCallsInController(controllerName, controller, endpointsService.http, endpointsService.server, false);
 
     let actionNames = Object.getOwnPropertyNames(Object.getPrototypeOf(controller)).filter(name => name !== 'constructor');

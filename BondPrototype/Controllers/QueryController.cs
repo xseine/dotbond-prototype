@@ -15,23 +15,39 @@ public class QueryController : QueryImplementations
     }
 
 
-    [HttpGet]
+	[HttpGet]
     public override IQueryable<GetMovieListDetailsType> GetMovieListDetails() => base.GetMovieListDetails();
 
 
-    [HttpGet]
+	[HttpGet]
+    public override IQueryable<GetShortProfilesOfActorsType> GetShortProfilesOfActors() => base.GetShortProfilesOfActors();
+
+
+	[HttpGet]
     public override IQueryable<GetListOfActorNamesType> GetListOfActorNames() => base.GetListOfActorNames();
 
 
-    [HttpGet]
+	[HttpGet]
+    public override GetBiographyType GetBiography(decimal actorId) => base.GetBiography(actorId);
+
+
+	[HttpGet]
+    public override GetBiography2Type GetBiography2(decimal actorId) => base.GetBiography2(actorId);
+
+
+	[HttpGet]
+    public override GetShortProfileAndWorkStatsType GetShortProfileAndWorkStats(decimal actorId) => base.GetShortProfileAndWorkStats(actorId);
+
+
+	[HttpGet]
     public override IQueryable<PersonResult> MyCustomQuery() => base.MyCustomQuery();
 
 
-    [HttpGet]
+	[HttpGet]
     public override IQueryable<PersonResult> AnotherCustomQuery() => base.AnotherCustomQuery();
 
 
-    [HttpGet]
+	[HttpGet]
     public override IEnumerable<MovieResult> AnotherOne(decimal year) => base.AnotherOne(year);
 
 
@@ -45,22 +61,6 @@ public class QueryController : QueryImplementations
 
 	[HttpGet]
     public override IEnumerable<MyQuery3Type> MyQuery3() => base.MyQuery3();
-
-
-	[HttpGet]
-    public override IQueryable<GetShortProfilesOfActorsType> GetShortProfilesOfActors() => base.GetShortProfilesOfActors();
-
-
-	[HttpGet]
-    public override GetBiographyType GetBiography(decimal actorId) => base.GetBiography(actorId);
-
-
-	[HttpGet]
-    public override GetBiography2Type GetBiography2(decimal actorId) => base.GetBiography2(actorId);
-
-
-	[HttpGet]
-    public override GetShortProfileAndWorkStatsType GetShortProfileAndWorkStats(decimal actorId) => base.GetShortProfileAndWorkStats(actorId);
 
 
 }
