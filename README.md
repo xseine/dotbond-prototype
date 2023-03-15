@@ -8,45 +8,28 @@ Run the first two to see what the demo is about (or use Dockerfile), and then ru
 
 [![NuGet version](https://badge.fury.io/nu/xseine.dotbond.svg)](https://badge.fury.io/nu/xseine.dotbond)
 
-<h2 style="margin-top: 0; line-height: 1">API tool for dynamic development</h2>
+<h2 style="margin-top: 0; line-height: 1">DotBond - intelligent tool for API development</h2>
+    
+DotBond is a proof of concept and is not ready for use in development.
 
-DotBond is a code-first tool for integrating frontend with backend that provides a powerful query layer on top of the API.<br/>
-It provides code generations and server-side query processing capabilities to clients, and it allows server to easily control the query processing.
-Queries are integrated, i.e. they are made using TypeScript and not a DSL language, and they are similar to LINQ in terms of syntax and functionality.
-Until these new endpoints are compiled on the backend, queries are executed client-side.
+It is a code-first tool that focuses on improving developer experience while creating and consuming API.
+It promotes API extensibility while maintaining scalability.
+These features in their entirety are only possible on the .NET / TypeScript stack.
+It provides:
+- End-to-end type safety
+- LINQ + GraphQL like features (server/client/hybrid execution)
+- Query execution plan using TypeScript’s Type System
+- Protection from writing bad client queries
 
-It consists of these two fresh mediums:
+The idea is that by having a well defined center in API,
+and with this tool focusing on the rest of the interface,
+the number of breaking changes and change requests in the APIs will be reduced.
 
-- **Endpoint reference**: A TypeScript client generator that generates classes representing controllers, along with class definitions of action parameter and return types.<br/>
-  It provides <ins>full translation</ins> of used classes and records which includes method declarations, along with validation and attributes.<br/><br/>
-- **API IQ**: Integrated queries (IQ) is the API layer for executing client queries using existing endpoints in the API.
-  Frontend queries are compiled into their LINQ counterparts, and are evaluated on the server
-  or in the datastore (if return type is IQueryable).<br/>
-  Query implementation can be overriden with custom implementations, or they can be completely disabled using `[NonAction]` attribute.
+Even though specific use cases of the API are tracked,
+the downside is the API definition might become complicated by having second class queries from the client in it.
+To address this, a built-in deciding mechanism for allowing server-side execution is implemented.
 
-## Strategy and implementation
-
-The tool is inspired by fullstack development and it aims to reduce friction between
-frontend and backend team by developing simpler, but more powerful, APIs.
-To avoid any mysterious allusions: it allows frontend to create queries that fit their needs without waiting for someone from backend team to do it,
-and it allows backend to setup (and change) its API without too much ceremony and customization beforehand.
-
-Theoretically, the frontend would be able to get all the data it needs for a view model by using a single query. The issue is that the used query implementation could be poor
-or left as a client-side query only, which would negatively affect performance of the app.
-Also, during development this could lead to writing a lot of "bad" queries and backend developers having to constantly write optimizations for them.
-
-Tool will try to solve the issue by providing as much information as possible about the performance of the new query, all from the TS type system:
-it can inform frontend about the expected performance of the query,
-if a new query is similar to a disabled one, if a filter operation will be fast (has index configured in EF), if a join will be fast (is IQueryable used),
-does the query take advantage of backend overrides, is the data loaded from a JSON column,  --DORADITI--  ,etc.
-On the backend, new endpoints will be compiled and recompiled to utilize "base" endpoints and overriden implementations
-as much as possible, derivatives of disabled endpoints will be auto-disabled, etc.
-Improvement of the compiler's performance will be the main focus of the future development,
-since it needs to reach a point where it feels like it does a good enough job and the layer does not need to be micro-managed.
-
-After creating a well functioning, intuitive base for the API, frontend could then extend to match the view model exactly.
-The API would be a result of the development process, instead of the process being the result of a predefined API schema.
-This approach also allows for an easy integration logic of different backend systems, so the agility and independence of different systems is maintained.
+Currently just supports Angular.
 
 Tool will be usable inside a single code repository or inside multiple using GitHub Actions.
 
@@ -57,4 +40,39 @@ Tool will be usable inside a single code repository or inside multiple using Git
 After installation, create a `bond.json` file in the project root for the configuration ([example](https://raw.githubusercontent.com/xseine/dotbond-prototype/develop/BondPrototype/bond.json)). After
 that is done, run the tool with the path to the .csproj file as argument.
 
-**Currently only Angular is supported.**
+## Features
+
+Some features that are original to DotBond require usage of Compiler API, Expression trees, and an advanced type system,
+so the stack used is the only that is supported.
+
+**All required definitions are translated to the front-end.** <br/>
+Besides properties, method definitions in API model classes are also translated, along with portions of `System` namespace
+that are most commonly used by the models: List methods, string methods and formatting, DateTime operations, etc.
+
+**Client queries** <br/>
+Client queries are queries defined on the fron-end, and can be executed on the server (_the target_), client or on both. <br/> 
+In regards to syntax and functionality, they are similar to LINQ, meaning they support only expression bodies (no blocks) 
+and have all the usual query operators (map, filter, join, groupjoin, take, skip, etc.) <br/>
+At the start, clients fetch data from all referenced endpoints and execute the query on their own.
+When the back-end gets the definition, it is provided with a default implementation of the query, which can be overriden/removed.
+From then on, the query is executed server side. New queries without implementation that reference older server-side queries
+will execute partially on the server and partially on the client (hybrid).<br/>
+If a query definition is changed on the client it will reset to client execution, and won't used the out-of-date back-end implementation.
+
+**Query limiter** <br/>
+This component is used to put some reasonable limitations on the client,
+to keep the queries aligned as much as possible with the original API. <br/>
+One limitation that is implemented, and probably the biggest example of the concept,
+is that a client query cannot recreate relationship between entities if an original action already uses them.
+In `1:n` relationship creating a query that would fetch more properties for children, than the existing actions provide,
+would indicate a much more different view of the data than initially intended, a list view of child entities categorized by the parent.
+In `1:1` relationship using more properties could ignore intended relationship of the entities.
+For entities with undefined relationships between them, client can create queries with their data.
+These are probably unambiguous, universal entities in the API.<br/>
+Query limitations are injected into the TypeScript's type system, so the client developer will know whether or not a client query satisfies them.
+
+**A very fast File Watcher** <br/>
+Even though a real-world usage of the tool might be between two different repositories, in a monorepo a File Watcher is required
+to do work when a file is saved. It is able to successfully scan entire solution for the required translations, and to as well
+translate front-end queries to C# counterparts. It is able to detect when a client query was implemented manually on the backend,
+so no unintentional overrides, and also removes all outdated client query implementations that would prevent a back-end build.

@@ -11,12 +11,9 @@ namespace DotBondTests.QueryChecker;
 
 public class QueryCheckerUnitTests
 {
-    public QueryCheckerGenerator QueryCheckerGenerator { get; set; }
-    
     [SetUp]
     public void Setup()
     {
-        QueryCheckerGenerator = new QueryCheckerGenerator(FileObservable.ASSEMBLY_NAME);
     }
 
     [Test]
@@ -28,8 +25,10 @@ public class QueryCheckerUnitTests
         var entitiesFile = initialFiles.First(e => e.FileTree.FilePath.EndsWith("Entities.cs"));
         var apiFile = initialFiles.First(e => e.FileTree.FilePath.EndsWith("MovieApiController.cs"));
 
-        QueryCheckerGenerator.GetControllerCallback(entitiesFile);
-        QueryCheckerGenerator.GetControllerCallback(apiFile);
+        var queryCheckerGenerator = new QueryCheckerGenerator(FileObservable.ASSEMBLY_NAME, fileObservable.Compilation);
+        
+        queryCheckerGenerator.GetControllerCallback(entitiesFile);
+        queryCheckerGenerator.GetControllerCallback(apiFile);
 
 
         // var relationships = QueryCheckerGenerator.GetRelationshipsOfActions().ToList();
