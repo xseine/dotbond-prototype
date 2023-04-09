@@ -246,14 +246,20 @@ public class QueryCheckerGenerator : AbstractGenerator
                     : never;
 
         export type ClientSide = { _ };
+        export type CustomQuery = { $ };
 
         {{runOnClientWhen}}
 
-        export type CombineQuery<TFirst, TSecondary = 0> = TSecondary extends (ClientSide | RunOnClientWhen[GetQueryName<TFirst>][number])
+        export type CombineQuery<TFirst, TSecondary = 0> = TSecondary extends | ClientSide
+            | RunOnClientWhen[GetQueryName<TFirst>][number]
             ? ClientSide
             : TSecondary extends SuperInterface<infer Depth>
                 ? GetQuery<TSecondary, Increment<Depth>>
-                : never;
+                : TSecondary extends CustomQuery
+                    ? GetQuery<TFirst, 1>
+                    : TFirst extends CustomQuery
+                        ? GetQuery<TSecondary, 1>
+                        : never;
         """;
 
         // Write rules to file

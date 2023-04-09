@@ -7,44 +7,69 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-import {combineLatest, map, Observable, of, OperatorFunction, switchMap, tap} from 'rxjs';
-import {accessUsingPath, EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER, evaluateInnerObservables, PrimitiveKey, queryInstanceId, sortAscCmp, sortDescCmp} from './miscellaneous';
-import {ClientSide, CombineQuery} from "../execution-rules";
+import {
+    combineLatest,
+    map,
+    Observable,
+    of,
+    OperatorFunction,
+    switchMap,
+    tap,
+} from "rxjs";
+import {
+    accessUsingPath,
+    EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER,
+    evaluateInnerObservables,
+    PrimitiveKey,
+    queryInstanceId,
+    sortAscCmp,
+    sortDescCmp,
+} from "./miscellaneous";
+import { ClientSide, CombineQuery } from "../execution-rules";
 
-type InferTElement<T> = (T extends (infer TElement)[] ? TElement : T);
+type InferTElement<T> = T extends (infer TElement)[] ? TElement : T;
 export interface ClientQuery {
-    client: 1
+    server: 0;
 }
 
 export interface ServerQuery {
-    server: 1
+    server: 1;
 }
 
 export interface IQueryable<T, ExecutionInsight = void> {
-
     /**
      * Projects each element of a sequence into a new form.
      * @param selector A transform function to apply to each source element.
      */
-    map: <TResult>(selector: (input: InferTElement<T>) => TResult) => IQueryable<TResult[]>;
+    map: <TResult>(
+        selector: (input: InferTElement<T>) => TResult
+    ) => IQueryable<TResult[], ExecutionInsight>;
 
     /**
      * Filters a sequence of values based on a predicate.
      * @param predicate A function to test each element for a condition.
      */
-    filter: (predicate: (input: InferTElement<T>) => boolean) => IQueryable<T>;
+    filter: (
+        predicate: (input: InferTElement<T>) => boolean
+    ) => IQueryable<T, ExecutionInsight>;
 
     /**
      * Sorts the elements of a sequence in ascending order according to a key.
      * @param key Key of an element object.
      */
-    orderBy: (key?: PrimitiveKey<InferTElement<T>>, ...indexes: number[]) => IQueryable<T>;
+    orderBy: (
+        key?: PrimitiveKey<InferTElement<T>>,
+        ...indexes: number[]
+    ) => IQueryable<T, ExecutionInsight>;
 
     /**
      * Sorts the elements of a sequence in descending order according to a key.
      * @param key Key of an element object.
      */
-    orderByDescending: (key?: PrimitiveKey<InferTElement<T>>, ...indexes: number[]) => IQueryable<T>;
+    orderByDescending: (
+        key?: PrimitiveKey<InferTElement<T>>,
+        ...indexes: number[]
+    ) => IQueryable<T, ExecutionInsight>;
 
     /**
      * The slice() method returns portion of an array
@@ -53,7 +78,7 @@ export interface IQueryable<T, ExecutionInsight = void> {
      * @param start Zero-based index at which to start extraction.
      * @param end Zero-based index before which to end extraction
      */
-    slice: (start: number, end: number) => IQueryable<T>;
+    slice: (start: number, end: number) => IQueryable<T, ExecutionInsight>;
     // Note: only positive numbers or 0
 
     /**
@@ -63,9 +88,15 @@ export interface IQueryable<T, ExecutionInsight = void> {
      * @param innerKey Join key from each element of the second sequence.
      * @param resultSelector A function to create a result element from two matching elements.
      */
-    join: <TInner, TResult, InnerExecutionInsight>(inner: () => IQueryable<TInner[], InnerExecutionInsight>, key: PrimitiveKey<InferTElement<T>>,
-                            innerKey: PrimitiveKey<TInner>,
-                            resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult) => IQueryable<TResult[], CombineQuery<ExecutionInsight, InnerExecutionInsight>>;
+    join: <TInner, TResult, InnerExecutionInsight>(
+        inner: () => IQueryable<TInner[], InnerExecutionInsight>,
+        key: PrimitiveKey<InferTElement<T>>,
+        innerKey: PrimitiveKey<TInner>,
+        resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult
+    ) => IQueryable<
+        TResult[],
+        CombineQuery<ExecutionInsight, InnerExecutionInsight>
+    >;
 
     /**
      * Correlates the elements of two sequences based on key equality and groups the results.
@@ -74,43 +105,65 @@ export interface IQueryable<T, ExecutionInsight = void> {
      * @param innerKey Join key from each element of the second sequence.
      * @param resultSelector A function to create a result element from an element from the first sequence and a collection of matching elements from the second sequence.
      */
-    groupJoin: <TInner, TResult>(inner: IQueryable<TInner[]>,
-                                 key: PrimitiveKey<InferTElement<T>>,
-                                 innerKey: PrimitiveKey<TInner>,
-                                 resultSelector: (input: InferTElement<T>, innerInput: TInner[]) => TResult) => IQueryable<TResult[]>;
+    groupJoin: <TInner, TResult, InnerExecutionInsight>(
+        inner: IQueryable<TInner[], InnerExecutionInsight>,
+        key: PrimitiveKey<InferTElement<T>>,
+        innerKey: PrimitiveKey<TInner>,
+        resultSelector: (
+            input: InferTElement<T>,
+            innerInput: TInner[]
+        ) => TResult
+    ) => IQueryable<
+        TResult[],
+        CombineQuery<ExecutionInsight, InnerExecutionInsight>
+    >;
 
     /**
      * Projects each element of a sequence to an IEnumerable<out T> and combines the resulting sequences into one sequence.
      * @param selector A projection function to apply to each element.
      */
-    flatMap: <TResult>(selector: (input: InferTElement<T>) => TResult[]) => IQueryable<TResult>;
+    flatMap: <TResult>(
+        selector: (input: InferTElement<T>) => TResult[]
+    ) => IQueryable<TResult>;
 
     /**
      * Returns the first element of a sequence that satisfies the predicate,
      * or if predicate is not provided, just the first element of a sequence.
      * @param predicate A function to test each element for a condition.
      */
-    find: (predicate?: (input: InferTElement<T>) => boolean) => InferTElement<T>;
+    find: (
+        predicate?: (input: InferTElement<T>) => boolean
+    ) => InferTElement<T>;
     toList: () => T;
 
     /**
      * Same as find, except it uses the correct return type.
      */
-    findAsync: (predicate?: (input: InferTElement<T>) => boolean) => Observable<InferTElement<T>>;
+    findAsync: (
+        predicate?: (input: InferTElement<T>) => boolean
+    ) => ExecutionInsight extends {}
+        ? ExecutionInsight extends ClientSide
+            ? ClientQuery & Observable<InferTElement<T>>
+            : ServerQuery & Observable<InferTElement<T>>
+        : Observable<InferTElement<T>>;
 
     /**
      * Same as toList, except it uses the correct return type.
      */
-    toListAsync: () => ExecutionInsight extends ClientSide ? ClientQuery & Observable<T> : ServerQuery & Observable<T>;
+    toListAsync: () => ExecutionInsight extends {}
+        ? ExecutionInsight extends ClientSide
+            ? ClientQuery & Observable<T>
+            : ServerQuery & Observable<T>
+        : Observable<T>;
 }
-
 
 /**
  * Client-side query engine
  */
 // @ts-ignore
-export class Queryable<T extends any[], ExecutionInsight = void> implements IQueryable<T, ExecutionInsight> {
-
+export class Queryable<T extends any[], ExecutionInsight = void>
+    implements IQueryable<T, ExecutionInsight>
+{
     /**
      * A list of properties that are accessed from objects returned by the find() function.
      * Even though Typescript is showing these functions to return models, they actually return Observable of those models.
@@ -129,121 +182,215 @@ export class Queryable<T extends any[], ExecutionInsight = void> implements IQue
      *
      * @param mainObservable If a function, operators are not applied internally, instead they are provided as parameters so the code instantiating the Observable can use them.
      */
-    constructor(mainObservable: Observable<{ result: any, shouldUseClientSideProcessing: boolean }>) {
-
-        this._mainObservable = mainObservable.pipe(map(({result, shouldUseClientSideProcessing}) => {
-            this._shouldUseClientSideProcessing = shouldUseClientSideProcessing;
-            return result;
-        }));
+    constructor(
+        mainObservable: Observable<{
+            result: any;
+            shouldUseClientSideProcessing: boolean;
+        }>
+    ) {
+        this._mainObservable = mainObservable.pipe(
+            map(({ result, shouldUseClientSideProcessing }) => {
+                this._shouldUseClientSideProcessing =
+                    shouldUseClientSideProcessing;
+                return result;
+            })
+        );
 
         this._queryInstanceId = queryInstanceId.id;
     }
 
-    map<TResult>(selector: (input: InferTElement<T>) => TResult): IQueryable<TResult[]> {
-
+    map<TResult, ExecutionInsight>(
+        selector: (input: InferTElement<T>) => TResult
+    ): IQueryable<TResult[], ExecutionInsight> {
         // Handle operations using "toString" override
         let originalToString = Observable.prototype.toString;
         let operatorObservables: Observable<any>[] = [];
         let overridenToString = function (this: any) {
             operatorObservables.push(this);
-            return EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER + operatorObservables.length;
+            return (
+                EMBEDDED_OBSERVABLE_STRING_PLACEHOLDER +
+                operatorObservables.length
+            );
         };
 
         this._queryOperatorsToApply.push(
-            tap(_ => Observable.prototype.toString = overridenToString),
-            map(row => row.map(selector)),                                  // Apply the map
-            tap(_ => Observable.prototype.toString = originalToString),     // Restore original "toString"
-            switchMap(data => combineLatest(data.map(e => evaluateInnerObservables(e, operatorObservables))))
+            tap((_) => (Observable.prototype.toString = overridenToString)),
+            map((row) => row.map(selector)), // Apply the map
+            tap((_) => (Observable.prototype.toString = originalToString)), // Restore original "toString"
+            switchMap((data) =>
+                combineLatest(
+                    data.map((e) =>
+                        evaluateInnerObservables(e, operatorObservables)
+                    )
+                )
+            )
         );
 
         return this as any;
     }
 
-    filter(predicate: any): IQueryable<T> {
-        this._queryOperatorsToApply.push(map(row => row.filter(predicate) as T));
+    filter(predicate: any): IQueryable<T, ExecutionInsight> {
+        this._queryOperatorsToApply.push(
+            map((row) => row.filter(predicate) as T)
+        );
 
         return this as any;
     }
 
-    orderBy(key?: PrimitiveKey<InferTElement<T>>, ...indexes: number[]): IQueryable<T> {
+    orderBy(
+        key?: PrimitiveKey<InferTElement<T>>,
+        ...indexes: number[]
+    ): IQueryable<T, ExecutionInsight> {
         if (indexes.length)
-            indexes.forEach(index => key = (key as string).replace('%d', index.toString()) as any);
-
-        this._queryOperatorsToApply.push(key
-            ? map(row => row.sort((a, b) => sortAscCmp(accessUsingPath(a, key as string), accessUsingPath(b, key as string))))
-            : map(row => row.sort((a, b) => a - b)))
-
-        return this as any;
-    }
-
-    orderByDescending(key?: PrimitiveKey<InferTElement<T>>, ...indexes: number[]): IQueryable<T> {
-        if (indexes.length)
-            indexes.forEach(index => key = (key as string).replace('%d', index.toString()) as any);
-
-        this._queryOperatorsToApply.push(key
-            ? map(row => row.sort((a, b) => sortDescCmp(accessUsingPath(a, key as string), accessUsingPath(b, key as string))))
-            : map(row => row.sort((a, b) => b - a)));
-
-        return this as any;
-    }
-
-    slice(start: number, end: number): IQueryable<T> {
-        this._queryOperatorsToApply.push(map(row => (row as any).slice(start, end)));
-
-        return this as any;
-    }
-
-    join<TInner, TResult, InnerExecutionInsight>(inner: () => IQueryable<TInner[], InnerExecutionInsight>, key: PrimitiveKey<InferTElement<T>>, innerKey: PrimitiveKey<TInner>, resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult): IQueryable<TResult[], CombineQuery<ExecutionInsight, InnerExecutionInsight>> {
-
-        // This join applies resultSelector to every outer-inner pair
-        this._queryOperatorsToApply.push(switchMap(outerData => {
-            queryInstanceId.id = this._queryInstanceId;
-            return (inner() as any as Queryable<TInner[]>)._mainObservable.pipe(
-                map(innerData => {
-
-                    let innerMap = {} as { [key: string]: TInner[] };
-                    innerData.map(e => accessUsingPath(e, innerKey)).forEach((keyValue, innerDataIdx) => keyValue != null && (innerMap[keyValue] ??= []).push(innerData[innerDataIdx]));
-
-                    return outerData.flatMap(row => {
-
-                        let outerKeyValue = accessUsingPath(row, innerKey)
-                        let innerRows = innerMap[outerKeyValue];
-                        return innerRows.map(innerRow => resultSelector(row, innerRow));
-                    });
-                })
+            indexes.forEach(
+                (index) =>
+                    (key = (key as string).replace(
+                        "%d",
+                        index.toString()
+                    ) as any)
             );
-        }));
+
+        this._queryOperatorsToApply.push(
+            key
+                ? map((row) =>
+                    row.sort((a, b) =>
+                        sortAscCmp(
+                            accessUsingPath(a, key as string),
+                            accessUsingPath(b, key as string)
+                        )
+                    )
+                )
+                : map((row) => row.sort((a, b) => a - b))
+        );
 
         return this as any;
     }
 
-    groupJoin<TInner, TResult>(inner: IQueryable<TInner[]>,
-                               key: PrimitiveKey<InferTElement<T>>,
-                               innerKey: PrimitiveKey<TInner>,
-                               resultSelector: (input: InferTElement<T>, innerInput: TInner[]) => TResult): IQueryable<TResult[]> {
+    orderByDescending(
+        key?: PrimitiveKey<InferTElement<T>>,
+        ...indexes: number[]
+    ): IQueryable<T, ExecutionInsight> {
+        if (indexes.length)
+            indexes.forEach(
+                (index) =>
+                    (key = (key as string).replace(
+                        "%d",
+                        index.toString()
+                    ) as any)
+            );
 
+        this._queryOperatorsToApply.push(
+            key
+                ? map((row) =>
+                    row.sort((a, b) =>
+                        sortDescCmp(
+                            accessUsingPath(a, key as string),
+                            accessUsingPath(b, key as string)
+                        )
+                    )
+                )
+                : map((row) => row.sort((a, b) => b - a))
+        );
+
+        return this as any;
+    }
+
+    slice(start: number, end: number): IQueryable<T, ExecutionInsight> {
+        this._queryOperatorsToApply.push(
+            map((row) => (row as any).slice(start, end))
+        );
+
+        return this as any;
+    }
+
+    join<TInner, TResult, InnerExecutionInsight>(
+        inner: () => IQueryable<TInner[], InnerExecutionInsight>,
+        key: PrimitiveKey<InferTElement<T>>,
+        innerKey: PrimitiveKey<TInner>,
+        resultSelector: (input: InferTElement<T>, innerInput: TInner) => TResult
+    ): IQueryable<
+        TResult[],
+        CombineQuery<ExecutionInsight, InnerExecutionInsight>
+    > {
+        // This join applies resultSelector to every outer-inner pair
+        this._queryOperatorsToApply.push(
+            switchMap((outerData) => {
+                queryInstanceId.id = this._queryInstanceId;
+                return (
+                    inner() as any as Queryable<TInner[]>
+                )._mainObservable.pipe(
+                    map((innerData) => {
+                        let innerMap = {} as { [key: string]: TInner[] };
+                        innerData
+                            .map((e) => accessUsingPath(e, innerKey))
+                            .forEach(
+                                (keyValue, innerDataIdx) =>
+                                    keyValue != null &&
+                                    (innerMap[keyValue] ??= []).push(
+                                        innerData[innerDataIdx]
+                                    )
+                            );
+
+                        return outerData.flatMap((row) => {
+                            let outerKeyValue = accessUsingPath(row, innerKey);
+                            let innerRows = innerMap[outerKeyValue];
+                            return innerRows.map((innerRow) =>
+                                resultSelector(row, innerRow)
+                            );
+                        });
+                    })
+                );
+            })
+        );
+
+        return this as any;
+    }
+
+    groupJoin<TInner, TResult, InnerExecutionInsight>(
+        inner: IQueryable<TInner[], InnerExecutionInsight>,
+        key: PrimitiveKey<InferTElement<T>>,
+        innerKey: PrimitiveKey<TInner>,
+        resultSelector: (
+            input: InferTElement<T>,
+            innerInput: TInner[]
+        ) => TResult
+    ): IQueryable<
+        TResult[],
+        CombineQuery<ExecutionInsight, InnerExecutionInsight>
+    > {
         // This join applies resultSelector to every outer element and the array of matching inner elements
-        this._queryOperatorsToApply.push(switchMap(outerData =>
-            (inner as any as Queryable<TInner[]>)._mainObservable.pipe(
-                map(innerData => {
+        this._queryOperatorsToApply.push(
+            switchMap((outerData) =>
+                (inner as any as Queryable<TInner[]>)._mainObservable.pipe(
+                    map((innerData) => {
+                        let innerMap = {} as { [key: string]: TInner[] };
+                        innerData
+                            .map((e) => accessUsingPath(e, innerKey))
+                            .forEach(
+                                (keyValue, innerDataIdx) =>
+                                    keyValue != null &&
+                                    (innerMap[keyValue] ??= []).push(
+                                        innerData[innerDataIdx]
+                                    )
+                            );
 
-                    let innerMap = {} as { [key: string]: TInner[] };
-                    innerData.map(e => accessUsingPath(e, innerKey)).forEach((keyValue, innerDataIdx) => keyValue != null && (innerMap[keyValue] ??= []).push(innerData[innerDataIdx]));
-
-                    return outerData.map(row => {
-
-                        let outerKeyValue = accessUsingPath(row, innerKey)
-                        let innerRows = innerMap[outerKeyValue];
-                        return resultSelector(row, innerRows);
-                    });
-                })
-            )));
+                        return outerData.map((row) => {
+                            let outerKeyValue = accessUsingPath(row, innerKey);
+                            let innerRows = innerMap[outerKeyValue];
+                            return resultSelector(row, innerRows);
+                        });
+                    })
+                )
+            )
+        );
 
         return this as any;
     }
 
     flatMap<TResult>(selector: any): IQueryable<TResult> {
-        this._queryOperatorsToApply.push(map(row => (row as any).flatMap(selector)));
+        this._queryOperatorsToApply.push(
+            map((row) => (row as any).flatMap(selector))
+        );
         return this as any;
     }
 
@@ -253,56 +400,86 @@ export class Queryable<T extends any[], ExecutionInsight = void> implements IQue
 
     toList(): T {
         return this._mainObservable.pipe(
-            switchMap(data => !this._shouldUseClientSideProcessing
-                ? of(data)
-                : of(data).pipe(
-                    tap(_ => queryInstanceId.id = this._queryInstanceId),
-                    ...(this._queryOperatorsToApply as [OperatorFunction<any, any>]),
-                    tap(_ => queryInstanceId.id = null)))
+            switchMap((data) =>
+                !this._shouldUseClientSideProcessing
+                    ? of(data)
+                    : of(data).pipe(
+                        tap(
+                            (_) =>
+                                (queryInstanceId.id = this._queryInstanceId)
+                        ),
+                        ...(this._queryOperatorsToApply as [
+                            OperatorFunction<any, any>
+                        ]),
+                        tap((_) => (queryInstanceId.id = null))
+                    )
+            )
         ) as any;
     }
 
-    findAsync(predicate?: any): Observable<T extends (infer U)[] ? U : T> {
+    findAsync(
+        predicate?: any
+    ): ExecutionInsight extends {}
+        ? ExecutionInsight extends ClientSide
+            ? ClientQuery & Observable<InferTElement<T>>
+            : ServerQuery & Observable<InferTElement<T>>
+        : Observable<InferTElement<T>> {
         return this.findPrivate(predicate, false);
     }
 
-    toListAsync(): ExecutionInsight extends ClientSide ? ClientQuery & Observable<T> : ServerQuery & Observable<T> {
+    toListAsync(): ExecutionInsight extends {}
+        ? ExecutionInsight extends ClientSide
+            ? ClientQuery & Observable<T>
+            : ServerQuery & Observable<T>
+        : Observable<T> {
         return this.toList() as any;
     }
 
     private findPrivate(predicate?: any, createAccessOverride = false): any {
-
         return this._mainObservable.pipe(
-            switchMap(data => {
-
+            switchMap((data) => {
                 let resultObservable = of(data);
 
                 if (this._shouldUseClientSideProcessing) {
-                    predicate ??= _ => true;
-                    this._queryOperatorsToApply.push(map(row => row.find(predicate)));
+                    predicate ??= (_) => true;
+                    this._queryOperatorsToApply.push(
+                        map((row) => row.find(predicate))
+                    );
 
                     // Access override of observables (query has used "find(...)")
                     if (createAccessOverride) {
                         for (let property of Queryable.accessedPropertiesAfterFind)
                             if (!resultObservable[property])
-                                Object.defineProperty(resultObservable, property, {
-                                    get: function () {
-                                        return resultObservable.pipe(map(row => row?.[property]));
+                                Object.defineProperty(
+                                    resultObservable,
+                                    property,
+                                    {
+                                        get: function () {
+                                            return resultObservable.pipe(
+                                                map((row) => row?.[property])
+                                            );
+                                        },
                                     }
-                                })
+                                );
                     }
                 } else
-                    resultObservable = resultObservable.pipe(map(data => data[0] ?? null));
-
+                    resultObservable = resultObservable.pipe(
+                        map((data) => data[0] ?? null)
+                    );
 
                 return !this._shouldUseClientSideProcessing
                     ? resultObservable
                     : resultObservable.pipe(
-                        tap(_ => queryInstanceId.id = this._queryInstanceId),
-                        ...(this._queryOperatorsToApply as [OperatorFunction<any, any>]),
-                        tap(_ => queryInstanceId.id = null));
+                        tap(
+                            (_) =>
+                                (queryInstanceId.id = this._queryInstanceId)
+                        ),
+                        ...(this._queryOperatorsToApply as [
+                            OperatorFunction<any, any>
+                        ]),
+                        tap((_) => (queryInstanceId.id = null))
+                    );
             })
         ) as any;
-
     }
 }
