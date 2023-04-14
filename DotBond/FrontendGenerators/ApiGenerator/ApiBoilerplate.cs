@@ -82,11 +82,11 @@ export class EndpointsContext<TAnalytics extends boolean = true> {
 	) {}
 
     {{string.Join("\n", controllers.Select(name => $"""
-	public {name[..^"Controller".Length]} = createQueryableController<{name}, TAnalytics>(
-		"{name[..^"Controller".Length]}",
-		new {name}(),
-		this.endpointsService
-	);
+		public {name[..^"Controller".Length]} = createQueryableController<{name}, TAnalytics>(
+			"{name[..^"Controller".Length]}",
+			new {name}(),
+			this.endpointsService
+		);
 	"""))}}
 }
 

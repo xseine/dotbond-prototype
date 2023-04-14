@@ -14,18 +14,14 @@ import {
 	NewController,
 	TranslateDemoController,
 } from "./controller-definitions";
-import {
-	asQueryable,
-	implementHttpCallsInController,
-} from "./library/miscellaneous";
+import {asQueryable, implementHttpCallsInController} from "./library/miscellaneous";
 import { IQueryable } from "./library/queryable";
 import { ExecutionInsights } from "./execution-rules";
-
 /**
  * Class that provides methods for making http requests to backend API.
  * Properties, representing backend controllers, are objects that contain
  * methods, which are actions of that specific controller.
- *
+ * 
  */
 export class BaseEndpointsService<TAnalytics extends boolean = true> {
 	public readonly server: string;
@@ -46,11 +42,11 @@ export class BaseEndpointsService<TAnalytics extends boolean = true> {
 			);
 		}
 	}
-
-	protected ctx: EndpointsContext<TAnalytics> =
-		new EndpointsContext<TAnalytics>(this, {} as any);
-
-	public MovieApi = new MovieApiController();
+    
+    	protected ctx: EndpointsContext<TAnalytics> =
+    		new EndpointsContext<TAnalytics>(this, {} as any);
+    
+    public MovieApi = new MovieApiController();
 	public New = new NewController();
 	public TranslateDemo = new TranslateDemoController();
 }
@@ -61,9 +57,7 @@ type Constructor<T = Record<string, unknown>> = {
 	prototype: T;
 };
 
-export function BaseEndpointsServiceConstructorFn<
-	TAnalytics extends boolean = true
->(
+export function BaseEndpointsServiceConstructorFn<TAnalytics extends boolean = true>(
 	showAnalytics: TAnalytics = true as TAnalytics
 ): Constructor<BaseEndpointsService<TAnalytics>> {
 	return BaseEndpointsService<TAnalytics>;
@@ -80,20 +74,21 @@ export class EndpointsContext<TAnalytics extends boolean = true> {
 		currentCustomQueryName: { name: string }
 	) {}
 
-	public MovieApi = createQueryableController<MovieApiController, TAnalytics>(
-		"MovieApi",
-		new MovieApiController(),
-		this.endpointsService
-	);
-	public New = createQueryableController<NewController, TAnalytics>(
-		"New",
-		new NewController(),
-		this.endpointsService
-	);
-	public TranslateDemo = createQueryableController<
-		TranslateDemoController,
-		TAnalytics
-	>("TranslateDemo", new TranslateDemoController(), this.endpointsService);
+    public MovieApi = createQueryableController<MovieApiController, TAnalytics>(
+	"MovieApi",
+	new MovieApiController(),
+	this.endpointsService
+);
+public New = createQueryableController<NewController, TAnalytics>(
+	"New",
+	new NewController(),
+	this.endpointsService
+);
+public TranslateDemo = createQueryableController<TranslateDemoController, TAnalytics>(
+	"TranslateDemo",
+	new TranslateDemoController(),
+	this.endpointsService
+);
 }
 
 type TController = MovieApiController | NewController | TranslateDemoController;

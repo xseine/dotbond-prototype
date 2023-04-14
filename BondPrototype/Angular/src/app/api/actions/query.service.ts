@@ -41,6 +41,7 @@ export class QueryService extends BaseEndpointsServiceConstructorFn(true) {
 
 	@customQuery
 	public GetMovieListDetails() {
+		const functionB = () => [1, 2, 3];
 		return this.ctx.MovieApi.GetMovies()
 			.map(
 				(movie) =>
@@ -140,7 +141,7 @@ export class QueryService extends BaseEndpointsServiceConstructorFn(true) {
 	public TestExecutionRules() {
 		return this.ctx.MovieApi.GetMovies()
 			.join(
-				() => this.ctx.MovieApi.GetMovies(),
+				() => this.ctx.MovieApi.GetActors(),
 				"id",
 				"id",
 				(movie1, movie2) => ({ movie1, movie2 })
