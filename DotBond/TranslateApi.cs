@@ -76,6 +76,7 @@ namespace DotBond
                 var typeDeclarations = parsedTree.ChildNodes().Where(e =>
                     e.IsKind(SyntaxKind.ClassDeclaration) || e.IsKind(SyntaxKind.StructDeclaration) || e.IsKind(SyntaxKind.RecordDeclaration) || e.IsKind(SyntaxKind.EnumDeclaration)).ToList();
 
+                
                 if (typeDeclarations.Any())
                 {
                     parsedTree = parsedTree.RemoveNodes(typeDeclarations, SyntaxRemoveOptions.KeepNoTrivia);
@@ -84,7 +85,7 @@ namespace DotBond
                     var lastUsingStatement = parsedTree.ChildNodes().OfType<UsingDirectiveSyntax>().FirstOrDefault();
 
                     if (!parsedTree.ChildNodes().Any())
-                        parsedTree = SyntaxFactory.CompilationUnit().AddMembers(SyntaxFactory.GlobalStatement(SyntaxFactory.ParseStatement("")));
+                        parsedTree = SyntaxFactory.CompilationUnit().AddMembers(SyntaxFactory.GlobalStatement(SyntaxFactory.ParseStatement("")).WithTrailingTrivia(parsedTree.GetTrailingTrivia()));
 
                     parsedTree = lastUsingStatement != null
                         ? parsedTree.InsertNodesAfter(lastUsingStatement, typeDeclarations)

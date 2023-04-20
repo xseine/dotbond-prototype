@@ -10,19 +10,20 @@ using DotBond.Workspace;
 using static DotBond.Misc.Utilities;
 
 
-Console.WriteLine("Hello.");
+Console.Write("Getting ready");
 
 var csprojPath = args.Length > 0 ? Path.GetFullPath(args[0]) : Directory.GetFiles(Directory.GetCurrentDirectory()).FirstOrDefault(e => e.EndsWith(".csproj"));
 if (csprojPath == null || !csprojPath.EndsWith(".csproj")) throw new ArgumentException(args.Length > 0 ? "Invalid path to .csproj file." : "Can't locate the csproj file in the current directory.");
 
 var backendRoot = Directory.GetParent(csprojPath)!.FullName;
-var bondConfig = BondConfigSchema.LoadFromFile(Path.Combine(backendRoot, "bond.json"));
+var bondConfig = BondConfigSchema.DeriveFromProjectFiles(backendRoot);
+
 FrontendDirectoryController.Setup(backendRoot, Path.Combine(backendRoot, bondConfig.OutputFolder));
 LoggingUtilities.CsprojPath = csprojPath;
     
 var fileObservable = new FileObservable(csprojPath);
 
-Console.WriteLine("Compiled the project successfully.");
+Console.WriteLine(".\nFinished compiling the project.");
 
 // Frontend generators that provide callbacks to analyze file file observable outputs
 var generators = new List<AbstractGenerator> { new ApiGenerator(FileObservable.ASSEMBLY_NAME), new QueryCheckerGenerator(FileObservable.ASSEMBLY_NAME, fileObservable.Compilation) };
@@ -140,10 +141,6 @@ Console.WriteLine($"Started file watcher on: {ApiGenerator.QueryServicePath}.");
 await EndpointSignatureObservable.InitializeObservable(fileObservable, csprojPath);
 
 Console.WriteLine("Started file watcher on C# source files.");
-Console.WriteLine("""
-###################
-DotBond is enabled!
-###################
-""");
+Console.WriteLine("DotBond is enabled.");
 
 await Observable.Never<int>();

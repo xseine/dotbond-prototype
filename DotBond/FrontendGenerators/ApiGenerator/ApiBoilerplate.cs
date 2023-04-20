@@ -19,9 +19,7 @@ public static class ApiBoilerplate
 import { Observable } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import {
-	MovieApiController,
-	NewController,
-	TranslateDemoController,
+{{string.Join(",\n", controllers)}}
 } from "./controller-definitions";
 import {asQueryable, implementHttpCallsInController} from "./library/miscellaneous";
 import { IQueryable } from "./library/queryable";
@@ -33,27 +31,21 @@ import { ExecutionInsights } from "./execution-rules";
  * 
  */
 export class BaseEndpointsService<TAnalytics extends boolean = true> {
-	public readonly server: string;
-
-	constructor(public http: HttpClient, server: string) {
-		this.server = server;
-
+	constructor(http: HttpClient, server: string) {
 		for (let controllerName in this) {
-			if (controllerName === "http" || controllerName === "server")
-				continue;
-
 			implementHttpCallsInController(
 				controllerName,
 				this[controllerName],
-				this.http,
-				this.server,
+				http,
+				server,
 				true
 			);
 		}
+
+		this.ctx = new EndpointsContext<TAnalytics>(http, server, {} as any);
 	}
-    
-    	protected ctx: EndpointsContext<TAnalytics> =
-    		new EndpointsContext<TAnalytics>(this, {} as any);
+
+	protected ctx: EndpointsContext<TAnalytics>;
     
     {{string.Join("\n\t", controllers.Select(c => $"public {c[..^"Controller".Length]} = new {c}();"))}}
 }
@@ -73,19 +65,22 @@ export function BaseEndpointsServiceConstructorFn<TAnalytics extends boolean = t
 export class EndpointsContext<TAnalytics extends boolean = true> {
 	/**
 	 *
-	 * @param endpointsService
+	 * @param http
+	 * @param server
 	 * @param currentCustomQueryName Name of the method that declares the query. (This is the name backend endpoint would use)
 	 */
 	constructor(
-		protected endpointsService: BaseEndpointsService<TAnalytics>,
-		currentCustomQueryName: { name: string }
+		private http: HttpClient,
+		private server: string,
+		private currentCustomQueryName: { name: string }
 	) {}
 
     {{string.Join("\n", controllers.Select(name => $"""
 		public {name[..^"Controller".Length]} = createQueryableController<{name}, TAnalytics>(
 			"{name[..^"Controller".Length]}",
 			new {name}(),
-			this.endpointsService
+			this.http,
+			this.server
 		);
 	"""))}}
 }
@@ -98,7 +93,8 @@ function createQueryableController<
 >(
 	controllerName: string,
 	controller: T,
-	endpointsService: BaseEndpointsService<TAnalytics>
+	http: HttpClient,
+	server: string
 ): {
 	[TAction in keyof T]: (
 		...args: Parameters<T[TAction]>
@@ -114,8 +110,8 @@ function createQueryableController<
 	implementHttpCallsInController(
 		controllerName,
 		controller,
-		endpointsService.http,
-		endpointsService.server,
+		http,
+		server,
 		false
 	);
 
@@ -126,7 +122,6 @@ function createQueryableController<
 	// @ts-ignore
 	let result = {} as any;
 	for (let action of actionNames) {
-		// ovo se moze dolje ubaciti
 		let overridenActionCall = controller[action] as (
 			...args: any
 		) => Observable<any>;
@@ -147,9 +142,6 @@ import {BaseEndpointsService, BaseEndpointsServiceConstructorFn} from "./base-en
 import { HttpClient } from "@angular/common/http";
 import { asQueryable, customQuery } from "./library/miscellaneous";
 import { Inject, Injectable } from "@angular/core";
-import { ENVIRONMENT_PROVIDER } from "../../../core/services/enviroment.provider";
-import { IMovieListDetails } from "../../movies/components/movie-list-item/movie-list-item.component";
-import { IActorShortProfile } from "../../actors/components/actor-short-profile/actor-short-profile.component";
 import "./library/dates/date-extend";
 import "./library/arrays/array-extend";
 
@@ -162,9 +154,6 @@ export class QueryService extends BaseEndpointsServiceConstructorFn(true) {
         {{(serverAddress == null ? "throw 'Server address was not found in the proxy config. Add it, if needed, and then delete this line.'" : "// Server address is read from proxy configuration (it can be changed manually)")}}
         super(http, '{{serverAddress}}');
     }
-
-    private ctx = new EndpointsContext(this, {} as any);
-
     
     /*========================== Custom Queries ==========================*/
 

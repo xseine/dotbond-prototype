@@ -61,7 +61,7 @@ public static class EndpointGenLib
         source = new Regex(@";?\s*}\s*$").Replace(source, ";");
 
         
-        (var ctrParams, source, var controllerNamespaces) = ExtractControllers(source, ref compilation); // Extract controllers
+        (var ctrParams, source, var controllerNamespaces, var isAsync) = ExtractControllers(source, ref compilation); // Extract controllers
 
         source = ReplaceSingleWithDoubleQuotes(source); // Replace single quotes
         source = ReplaceBracketWithDotNotation(source);
@@ -90,7 +90,7 @@ public static class EndpointGenLib
         source = deconstructStatement + "\n" + source;
 
         source = Regex.Replace(source, @"^\s+", "");
-        return new TranslatedEndpoint(actionName, parameters, source, ctrParams, generatedRecords, controllerNamespaces);
+        return new TranslatedEndpoint(actionName, parameters, source, ctrParams, generatedRecords, controllerNamespaces, isAsync);
     }
 
     /// <summary>
@@ -153,7 +153,7 @@ public static class EndpointGenLib
     /// <summary>
     /// Modifies the action body to declare controller variables before the query.
     /// </summary>
-    private static (List<(string Name, string Type)> controllerInjections, string source, List<string> usingNamespaces)
+    private static (List<(string Name, string Type)> controllerInjections, string source, List<string> usingNamespaces, bool isAsync)
             ExtractControllers(string source, ref Compilation compilation)
     {
         // Controllers used in the composed query
@@ -166,6 +166,8 @@ public static class EndpointGenLib
         var returnedValsAndCtrlInstancesVars = new List<string>();
         var areNullableRefEnabled = compilation.Options.NullableContextOptions == NullableContextOptions.Enable;
         var returnVarIdentifierCnt = 1;
+
+        var isAsync = false;
         
         // Enclose action invocation into array ceation syntax.
         // This is needed because frontend uses collection type methods (map, filter...)
@@ -174,21 +176,27 @@ public static class EndpointGenLib
         var actionInvocationRx = new Regex($@"this\.ctx\.(?<controller>\w+)\s*\.\s*(?<action>\w+)\s*(?<parameters>{MatchBrackets(BracketType.Parenthasis)})");
         foreach (var (match, controller, action, parameters) in actionInvocationRx.Matches(source).Select(e => (e.Value, e.Groups["controller"].Value, e.Groups["action"].Value, e.Groups["parameters"].Value)).DistinctBy(e => e.Item1))
         {
-            var (actionReturnTypeSymbol, isCollection, isActionResult) = GetActionReturnType(action, controller, syntaxTreesToInspect, ref compilation);
+            var (actionReturnTypeSymbol, isCollection, isTask, isActionResult) = GetActionReturnType(action, controller, syntaxTreesToInspect, ref compilation);
 
             if (isCollection == false)
             {
                 var newVariableName = returnVarIdentifierCnt == 1 ? "returnVar" : $"returnVar{returnVarIdentifierCnt}";
-                var newvariableType = isActionResult ? (actionReturnTypeSymbol as INamedTypeSymbol).TypeArguments.First() : actionReturnTypeSymbol;
+                var newvariableType = isTask ? ((INamedTypeSymbol)actionReturnTypeSymbol).TypeArguments.First() : actionReturnTypeSymbol;
+                newvariableType = isActionResult ? ((INamedTypeSymbol)newvariableType).TypeArguments.First() : newvariableType;
                 returnedValsAndCtrlInstancesVars.Add($"{newvariableType}{(areNullableRefEnabled ? "?" : null)} {newVariableName};");
 
-                var replacement = $"(({newVariableName} = {match}{(isActionResult ? ".Value" : null)}) != null ? new[] {{{newVariableName}}}.ToList() : null)";
+                var replacement = $"(({newVariableName} = {(isTask ? "await " : null)}{match}{(isActionResult ? ".Value" : null)}) != null ? new[] {{{newVariableName}}}.ToList() : null)";
                 source = source.Replace(match, replacement);
 
                 returnVarIdentifierCnt++;
-            } else if (isActionResult)
-                source = source.Replace(match, match + ".Value");
-
+            } 
+            else if (isActionResult || isTask)
+            {
+                if (isActionResult)
+                    source = source.Replace(match, match + ".Value");
+                if (isTask)
+                    source = source.Replace(match,  $"(await {match})");
+            }
 
             // Removing conditional access in IQueryables
             if (isCollection && actionReturnTypeSymbol.Name == "IQueryable")
@@ -197,6 +205,9 @@ public static class EndpointGenLib
                 source = source.Replace(queryableMethodChain, ConditionalAccessRx.Replace(queryableMethodChain, "$1"));
                 source = Regex.Replace(source, @"\.\s*find\(", ".findWithoutDefault(");
             }
+
+            if (isTask)
+                isAsync = true;
             
             if (parameters == "()") continue;
             
@@ -237,9 +248,14 @@ public static class EndpointGenLib
         var usingNamespaces = syntaxTreesToInspect.SelectMany(tree =>
         {
             var semanticModel = compilationCopy.GetSemanticModel(tree);
-            return tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+            var constructorParameterTypes = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
                 .Where(e => controllerNames.Contains(e.Identifier.Text))
                 .SelectMany(classSyntax => (RoslynUtilities.GetConstructorParametersNamespaces(classSyntax, semanticModel) ?? new List<string>()).Append(semanticModel.GetDeclaredSymbol(classSyntax)!.ContainingNamespace.ToString()));
+
+            var nestedEnums = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().SelectMany(e => e.DescendantNodes().OfType<EnumDeclarationSyntax>())
+                .Select(e => semanticModel.GetDeclaredSymbol(e)).Select(e => $"{e.Name} = {e}");
+            
+            return constructorParameterTypes.Concat(nestedEnums);
         });
         
 
@@ -248,7 +264,7 @@ public static class EndpointGenLib
         // Apply conditional access after find()/FirstOrDefault()
         source = new Regex(@"find\(\)\.(\w+)").Replace(source, "find()?.$1");
         
-        return (distinctServiceInjections, source, usingNamespaces.Distinct().ToList());
+        return (distinctServiceInjections, source, usingNamespaces.Distinct().ToList(), isAsync);
     }
 
 
@@ -598,7 +614,7 @@ public class {EndpointGenInitializer.QueryImplementationsFile[..^3]} : Controlle
     }}
     
 {string.Join("\n", translations.Select(t => $@"
-    public virtual object {t.ActionName}({string.Join(", ", t.ActionParameters.Select(p => $"{p.Type} {p.Name}"))})
+    public virtual {(t.isAsync ? "async Task<object>" : "object")} {t.ActionName}({string.Join(", ", t.ActionParameters.Select(p => $"{p.Type} {p.Name}"))})
     {{
         {t.Body}
     }}
@@ -624,7 +640,7 @@ public class {EndpointGenInitializer.QueryControllerFile[..^3]} : {EndpointGenIn
 
 {string.Join("\n", translations.Select(t => $@"
     [HttpGet]
-    public override object {t.ActionName}({string.Join(", ", t.ActionParameters.Select(p => $"{p.Type} {p.Name}"))}) => base.{t.ActionName}({string.Join(", ", t.ActionParameters.Select(p => p.Name))});
+    public override {(t.isAsync ? "Task<object>" : "object")} {t.ActionName}({string.Join(", ", t.ActionParameters.Select(p => $"{p.Type} {p.Name}"))}) => base.{t.ActionName}({string.Join(", ", t.ActionParameters.Select(p => p.Name))});
 "))}
 
 }}
@@ -658,5 +674,5 @@ public class {EndpointGenInitializer.QueryControllerFile[..^3]} : {EndpointGenIn
     /// <param name="InjectedServices">Services that will have to be injected into controller class.</param>
     /// <param name="GeneratedRecordTypes">Generated record types used for parameter binding.</param>
     private record TranslatedEndpoint(string ActionName, List<(string Name, string Type)> ActionParameters, string Body,
-        List<(string Name, string Type)> InjectedServices, string GeneratedRecordTypes, List<string> UsingNamespaces);
+        List<(string Name, string Type)> InjectedServices, string GeneratedRecordTypes, List<string> UsingNamespaces, bool isAsync);
 }

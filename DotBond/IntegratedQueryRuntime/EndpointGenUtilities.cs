@@ -18,10 +18,10 @@ public static class EndpointGenUtilities
         var controllersSource = string.Join("\n", containingSyntaxTrees);
         var splitNameAndTypeRx = new Regex(@"(?<type>\w+\s*(<(([^<^>]*(<|>)[^<^>]*(<|>))*?|([^<^>]+))>)*)\s+(?<name>\w+)\s*(,|$)");
         var controllerInjections = controllerNames.Select(controllerName => (controllerName, rx: new Regex(@$"public\s*{controllerName}\s*\((?<injected>[^)]*)\)")))
-            .Select(nameAndRx => (ControllerName: nameAndRx.controllerName, Injected: 
+            .Select(nameAndRx => (ControllerName: nameAndRx.controllerName, Injected:
                 splitNameAndTypeRx
-                .Matches(nameAndRx.rx.Match(controllersSource).Groups["injected"].Value)
-                .Select(e => (Name: e.Groups["name"].Value, Type: e.Groups["type"].Value)))).ToList(); //.ToDictionary(e => e.name, e => e.injected);
+                    .Matches(nameAndRx.rx.Match(controllersSource).Groups["injected"].Value)
+                    .Select(e => (Name: e.Groups["name"].Value, Type: e.Groups["type"].Value)))).ToList(); //.ToDictionary(e => e.name, e => e.injected);
 
         // Since differenct controllers can inject same services under different names
         var distinctServiceInjections = controllerInjections
@@ -32,13 +32,13 @@ public static class EndpointGenUtilities
 
         return (controllerInjections, distinctServiceInjections);
     }
-    
-    
+
+
     public static string CreateRecord(string name, List<string> namedTypes, List<string> objectValueTypeFields = null, IEnumerable<string> recordTranslations = null)
     {
         var indent = Regex.Matches(name, @"Record\d").Count - 1;
         var isOnlyOneField = namedTypes.Count + objectValueTypeFields?.Count == 1;
-        
+
         var record = $@"public record {name}({string.Join(", ", namedTypes)})
 {{
     {(objectValueTypeFields != null ? string.Join("\n\t", objectValueTypeFields.Select(e => $"public {e} = null!;")) : null)}
@@ -53,10 +53,10 @@ public static class EndpointGenUtilities
 
         if (indent > 0)
             record = record.Replace("\n", "\n" + string.Join("", Enumerable.Repeat("\t", indent)));
-        
+
         // Trim empty bodies
         record = Regex.Replace(record, @"(?<=\{)\s+(?=\})", "");
-        
+
         return record;
     }
 
@@ -68,7 +68,7 @@ public static class EndpointGenUtilities
     /// <param name="containingSyntaxTrees">List of syntax tree's where definitions of all actions are stored.</param>
     /// <param name="compilation">Used for getting type's symbol information.</param>
     /// <returns></returns>
-    public static (ITypeSymbol actionReturnTypeSymbol, bool isCollection, bool isActionResult) GetActionReturnType
+    public static (ITypeSymbol actionReturnTypeSymbol, bool isCollection, bool isTask, bool isActionResult) GetActionReturnType
         (string action, string controller, List<SyntaxTree> containingSyntaxTrees, ref Compilation compilation)
     {
         var tree = containingSyntaxTrees.FirstOrDefault(tree =>
@@ -86,12 +86,20 @@ public static class EndpointGenUtilities
             .First(actionDeclaration => actionDeclaration != null);
 
         var actionReturnTypeSymbol = (ModelExtensions.GetDeclaredSymbol(semanticModel, actionDeclarationSyntax) as IMethodSymbol)!.ReturnType;
-        var isCollection = actionReturnTypeSymbol is INamedTypeSymbol { IsGenericType: true, Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" }
-                           || actionReturnTypeSymbol is INamedTypeSymbol { IsGenericType: true, Name: "ActionResult" } actionResultType
-                           && actionResultType.TypeArguments.First() is INamedTypeSymbol { IsGenericType: true, Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" };
+        var isCollection = actionReturnTypeSymbol is INamedTypeSymbol { Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" } or INamedTypeSymbol
+        {
+            Name: "ActionResult", TypeArguments: [INamedTypeSymbol { Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" }]
+        } or INamedTypeSymbol
+        {
+            Name: "Task", TypeArguments: [INamedTypeSymbol {Name: "ActionResult", TypeArguments: [INamedTypeSymbol { Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" }]} 
+                or INamedTypeSymbol { Name: "List" or "IList" or "IEnumerable" or "ICollection" or "IQueryable" }]
+        };
 
-        var isActionResult = actionReturnTypeSymbol is INamedTypeSymbol { IsGenericType: true, Name: "ActionResult" };
-        return (actionReturnTypeSymbol, isCollection, isActionResult);
+        var isTask = actionReturnTypeSymbol is INamedTypeSymbol { Name: "Task" };
+        var isActionResult = isTask && actionReturnTypeSymbol is INamedTypeSymbol { TypeArguments: [INamedTypeSymbol { Name: "ActionResult" }] } ||
+                             actionReturnTypeSymbol is INamedTypeSymbol { Name: "ActionResult" };
+
+        return (actionReturnTypeSymbol, isCollection, isTask, isActionResult);
     }
 
     /// <summary>
@@ -123,8 +131,9 @@ public static class EndpointGenUtilities
     {
         return Keywords.Contains(name) ? "@" + name : name;
     }
-    
-    private static readonly string[] Keywords = {
+
+    private static readonly string[] Keywords =
+    {
         "abstract",
         "as",
         "base",

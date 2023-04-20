@@ -124,6 +124,18 @@ public static class Utilities
         return source.Take(1).Concat(delay).Repeat(); 
     }
 
+    public static Task FileIOTimeoutUnit(int increment) => Task.Delay(increment * 100);
+
+    public static Task RetryAsync(Task task, int retryCnt)
+    {
+        var idx = 0;
+        return task.ToObservable()
+            .Delay(_ => Observable.Timer(TimeSpan.FromMilliseconds(idx++ * 100)))
+            .Retry(retryCnt)
+            .FirstAsync()
+            .ToTask();
+    }
+
     public static IObservable<TSource> Trace<TSource>(this IObservable<TSource> source, string name)
     {
         int id = 0;

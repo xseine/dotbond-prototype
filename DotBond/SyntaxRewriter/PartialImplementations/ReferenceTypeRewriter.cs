@@ -39,10 +39,18 @@ public partial class Rewriter
         var isWebApiController = isTopLevelClass && RoslynUtilities.InheritsFromController(SemanticModel.GetDeclaredSymbol(node));
         if (isWebApiController)
         {
-            var everythingButClassOrRecord = node.ChildNodes().Where(e => !e.IsKind(SyntaxKind.ClassDeclaration) && !e.IsKind(SyntaxKind.RecordDeclaration));
-            overrideVisit = node.RemoveNodes(everythingButClassOrRecord, SyntaxRemoveOptions.KeepNoTrivia);
-            overrideVisit = (ClassDeclarationSyntax)base.VisitClassDeclaration(overrideVisit);
-            overrideVisit = overrideVisit.WithIdentifier(SyntaxFactory.Identifier(overrideVisit.Identifier.Text + ApiGenerator.ControllerImportSuffix));
+            // TODO: create new class syntax from classes records or enums inside this class
+            var typeDeclarations = node.DescendantNodes().OfType<TypeDeclarationSyntax>().Select(base.Visit).Cast<MemberDeclarationSyntax>();
+            var enumDeclarations = node.DescendantNodes().OfType<EnumDeclarationSyntax>().Select(base.Visit).Cast<MemberDeclarationSyntax>();
+
+            overrideVisit = SyntaxFactory.ClassDeclaration(SyntaxFactory.Identifier(" " + node.Identifier.Text + ApiGenerator.ControllerImportSuffix))
+                .WithMembers(new SyntaxList<MemberDeclarationSyntax>(typeDeclarations.Concat(enumDeclarations)))
+                .WithModifiers(SyntaxFactory.TokenList(CreateToken(SyntaxKind.PublicKeyword, "export ")));
+            
+            // var everythingButClassOrRecord = node.ChildNodes().Where(e => !e.IsKind(SyntaxKind.ClassDeclaration) && !e.IsKind(SyntaxKind.RecordDeclaration));
+            // overrideVisit = node.RemoveNodes(everythingButClassOrRecord, SyntaxRemoveOptions.KeepNoTrivia);
+            // overrideVisit = (ClassDeclarationSyntax)base.VisitClassDeclaration(overrideVisit);
+            // overrideVisit = overrideVisit.WithIdentifier(SyntaxFactory.Identifier(overrideVisit.Identifier.Text + ApiGenerator.ControllerImportSuffix));
         }
         else
             overrideVisit = (ClassDeclarationSyntax)base.VisitClassDeclaration(node);
@@ -58,7 +66,7 @@ public partial class Rewriter
 
         if (isTopLevelClass)
         {
-            var (nestedClasses, prunedNode) = ExtractNestedClasses(overrideVisit, true);
+            var (nestedClasses, prunedNode) = ExtractNestedTypesAndEnums(overrideVisit, true);
             if (nestedClasses != null)
             {
                 nestedClasses = TsRegexRepository.EmptyLinesRx.Replace(nestedClasses, "");
@@ -76,20 +84,23 @@ public partial class Rewriter
     /// <summary>
     /// Gets nested classes syntax, what is not allowed in TS, and returns their namespace, name and string syntax.
     /// </summary>
-    private (string StringContent, SyntaxNode Node) ExtractNestedClasses(SyntaxNode classOrRecordDeclaration, bool isTopLevel = false)
+    private (string StringContent, SyntaxNode Node) ExtractNestedTypesAndEnums(SyntaxNode declaration, bool isTopLevel = false)
     {
-        // as opposed of enum
-        var isClass = classOrRecordDeclaration is ClassDeclarationSyntax;
-        var nodeName = isClass ? ((ClassDeclarationSyntax)classOrRecordDeclaration).Identifier.Text : ((RecordDeclarationSyntax)classOrRecordDeclaration).Identifier.Text;
+        var nodeName = declaration switch
+        {
+            TypeDeclarationSyntax {Identifier.Text: var text} => text,
+            EnumDeclarationSyntax {Identifier.Text: var enumText} => enumText,
+            _ => throw new Exception("Nested declarations can only be extracted from a declaration node, not from: " + declaration.GetType().Name)
+        };
 
-        var descendantNodes = classOrRecordDeclaration.DescendantNodes().ToList();
-        var childClassOrRecordNodes = descendantNodes.OfType<RecordDeclarationSyntax>().Cast<SyntaxNode>().Concat(descendantNodes.OfType<ClassDeclarationSyntax>()).ToList();
+        var descendantNodes = declaration.DescendantNodes().ToList();
+        var childClassOrRecordNodes = descendantNodes.OfType<TypeDeclarationSyntax>().Cast<SyntaxNode>().Concat(descendantNodes.OfType<EnumDeclarationSyntax>()).ToList();
 
         // var visitedDeclaration = rewriter.Visit(classOrRecordDeclaration);
-        var extractedChildrenClasses = childClassOrRecordNodes.Any() ? string.Join("\n", childClassOrRecordNodes.Select(e => ExtractNestedClasses(e).StringContent)) : null;
-        classOrRecordDeclaration = classOrRecordDeclaration.RemoveNodes(childClassOrRecordNodes, SyntaxRemoveOptions.KeepNoTrivia)!;
+        var extractedChildrenClasses = childClassOrRecordNodes.Any() ? string.Join("\n", childClassOrRecordNodes.Select(e => ExtractNestedTypesAndEnums(e).StringContent)) : null;
+        declaration = declaration.RemoveNodes(childClassOrRecordNodes, SyntaxRemoveOptions.KeepNoTrivia)!;
 
-        var currentClassDefinition = isTopLevel ? null : classOrRecordDeclaration.ToFullString();
+        var currentClassDefinition = isTopLevel ? null : declaration.ToFullString();
 
         var result = !childClassOrRecordNodes.Any()
             ? (currentClassDefinition != null ? FixDeclarationWhitespace(currentClassDefinition) : null)
@@ -100,7 +111,7 @@ export namespace {nodeName} {{
 {extractedChildrenClasses}
 }}
 ";
-        return (result, classOrRecordDeclaration);
+        return (result, declaration);
     }
 
 

@@ -155,7 +155,7 @@ public class QueryCheckerGenerator : AbstractGenerator
         {
             var invocationsOfSiblingActions = actionSyntax.DescendantNodes().OfType<InvocationExpressionSyntax>()
                 .Select(e => (IMethodSymbol)semanticModel.GetSymbolInfo(e).Symbol)
-                .Where(invocationSymbol => invocationSymbol.ContainingSymbol.Name == action.ContainingSymbol.Name).ToList();
+                .Where(invocationSymbol => invocationSymbol?.ContainingSymbol.Name == action.ContainingSymbol.Name).ToList();
 
             if (invocationsOfSiblingActions.Count == 0) return default;
             if (invocationsOfSiblingActions.Count == 1) return GetUsedEntityTypes(invocationsOfSiblingActions[0], semanticModel);
@@ -228,7 +228,7 @@ public class QueryCheckerGenerator : AbstractGenerator
         export type ExecutionInsights = {
             {{string.Join("\n", actionsToGenerate.Select(e => $"{e}: {e},"))}}
         } & {
-            [key in Exclude<string, {{string.Join(" | ", actionsToGenerate.Select(e => $"'{e}'"))}}>]: void
+            [key in Exclude<string, {{(actionsToGenerate.Any() ? string.Join(" | ", actionsToGenerate.Select(e => $"'{e}'")) : "void")}}>]: void
         }
 
         {{queryInterfaces}}
@@ -240,10 +240,10 @@ public class QueryCheckerGenerator : AbstractGenerator
         }
 
         type GetQuery<Query, Depth extends number> = {{string.Join("\n:", actionsToGenerate.Select(e => $"Query extends {e}<any>\n? {e}<Depth>"))}}
-                    : never;
+                    {{(actionsToGenerate.Any() ? ":" : null)}} never;
 
         type GetQueryName<Query> = {{string.Join("\n:", actionsToGenerate.Select(e => $"Query extends {e}<any>\n? '{e}'"))}}
-                    : never;
+                    {{(actionsToGenerate.Any() ? ":" : null)}} never;
 
         export type ClientSide = { _ };
         export type CustomQuery = { $ };

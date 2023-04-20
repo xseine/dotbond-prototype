@@ -109,6 +109,7 @@ public partial class Rewriter
     // Replaces expression body with the block statement
     public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
     {
+        if (node.Identifier.Text == "Deconstruct" && node.Modifiers.Any(e => e.IsKind(SyntaxKind.PublicKeyword))) return null;
         var overrideVisit = (MethodDeclarationSyntax)base.VisitMethodDeclaration(node)!;
         
         if (overrideVisit.ExpressionBody != null)

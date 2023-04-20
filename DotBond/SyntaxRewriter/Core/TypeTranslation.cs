@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using DotBond.Generators;
+using DotBond.Misc;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -22,7 +24,7 @@ namespace ConsoleApp1.Common
                 "int" or "double" or "float" or "Int32"
                     or "Int64" or "UInt32" or "UInt64" or "short" or "byte" or "long" or "decimal" => "number",
                 "bool" => "boolean",
-                "DateTime" or "DateTimeOffset" => "Date",
+                "DateTime" or "DateTimeOffset" or "DateOnly" => "Date",
                 "Guid" or "String" or "string" or "char" => "string",
                 "dynamic" or "object" => "any",
                 _ => null
@@ -91,6 +93,9 @@ namespace ConsoleApp1.Common
             if (typeSymbol == null) return null;
             if (typeSymbol.ContainingType == null) return null;
             var result = GetContainingTypesPath(typeSymbol.ContainingType) + "." + typeSymbol.ContainingType.Name;
+            if (RoslynUtilities.InheritsFromController(typeSymbol.ContainingType))
+                result += ApiGenerator.ControllerImportSuffix;
+            
             return result[1..];
         }
     }

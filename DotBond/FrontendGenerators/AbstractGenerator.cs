@@ -45,7 +45,7 @@ public abstract class AbstractGenerator
     
     /*========================== Private API ==========================*/
     
-    protected bool IsReferenceTypeForTranslation(ITypeSymbol symbol) => !symbol.IsValueType && symbol.ContainingSymbol.Name != "String" && symbol.ContainingAssembly.Name == AssemblyName;
+    protected bool IsReferenceTypeForTranslation(ITypeSymbol symbol) => symbol is not IErrorTypeSymbol && !symbol.IsValueType && symbol.ContainingSymbol.Name != "String" && symbol.ContainingAssembly.Name == AssemblyName;
 
     protected static string RemoveNamespace(string type) => new Regex(@"(?:\w+\.)+(\w+)").Replace(type, "$1");
 }

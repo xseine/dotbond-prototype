@@ -14,39 +14,36 @@ import {
 	NewController,
 	TranslateDemoController,
 } from "./controller-definitions";
-import {asQueryable, implementHttpCallsInController} from "./library/miscellaneous";
+import {
+	asQueryable,
+	implementHttpCallsInController,
+} from "./library/miscellaneous";
 import { IQueryable } from "./library/queryable";
 import { ExecutionInsights } from "./execution-rules";
 /**
  * Class that provides methods for making http requests to backend API.
  * Properties, representing backend controllers, are objects that contain
  * methods, which are actions of that specific controller.
- * 
+ *
  */
 export class BaseEndpointsService<TAnalytics extends boolean = true> {
-	public readonly server: string;
-
-	constructor(public http: HttpClient, server: string) {
-		this.server = server;
-
+	constructor(http: HttpClient, server: string) {
 		for (let controllerName in this) {
-			if (controllerName === "http" || controllerName === "server")
-				continue;
-
 			implementHttpCallsInController(
 				controllerName,
 				this[controllerName],
-				this.http,
-				this.server,
+				http,
+				server,
 				true
 			);
 		}
+
+		this.ctx = new EndpointsContext<TAnalytics>(http, server, {} as any);
 	}
-    
-    	protected ctx: EndpointsContext<TAnalytics> =
-    		new EndpointsContext<TAnalytics>(this, {} as any);
-    
-    public MovieApi = new MovieApiController();
+
+	protected ctx: EndpointsContext<TAnalytics>;
+
+	public MovieApi = new MovieApiController();
 	public New = new NewController();
 	public TranslateDemo = new TranslateDemoController();
 }
@@ -57,7 +54,9 @@ type Constructor<T = Record<string, unknown>> = {
 	prototype: T;
 };
 
-export function BaseEndpointsServiceConstructorFn<TAnalytics extends boolean = true>(
+export function BaseEndpointsServiceConstructorFn<
+	TAnalytics extends boolean = true
+>(
 	showAnalytics: TAnalytics = true as TAnalytics
 ): Constructor<BaseEndpointsService<TAnalytics>> {
 	return BaseEndpointsService<TAnalytics>;
@@ -66,29 +65,32 @@ export function BaseEndpointsServiceConstructorFn<TAnalytics extends boolean = t
 export class EndpointsContext<TAnalytics extends boolean = true> {
 	/**
 	 *
-	 * @param endpointsService
+	 * @param http
+	 * @param server
 	 * @param currentCustomQueryName Name of the method that declares the query. (This is the name backend endpoint would use)
 	 */
 	constructor(
-		protected endpointsService: BaseEndpointsService<TAnalytics>,
-		currentCustomQueryName: { name: string }
+		private http: HttpClient,
+		private server: string,
+		private currentCustomQueryName: { name: string }
 	) {}
 
-    public MovieApi = createQueryableController<MovieApiController, TAnalytics>(
-	"MovieApi",
-	new MovieApiController(),
-	this.endpointsService
-);
-public New = createQueryableController<NewController, TAnalytics>(
-	"New",
-	new NewController(),
-	this.endpointsService
-);
-public TranslateDemo = createQueryableController<TranslateDemoController, TAnalytics>(
-	"TranslateDemo",
-	new TranslateDemoController(),
-	this.endpointsService
-);
+	public MovieApi = createQueryableController<MovieApiController, TAnalytics>(
+		"MovieApi",
+		new MovieApiController(),
+		this.http,
+		this.server
+	);
+	public New = createQueryableController<NewController, TAnalytics>(
+		"New",
+		new NewController(),
+		this.http,
+		this.server
+	);
+	public TranslateDemo = createQueryableController<
+		TranslateDemoController,
+		TAnalytics
+	>("TranslateDemo", new TranslateDemoController(), this.http, this.server);
 }
 
 type TController = MovieApiController | NewController | TranslateDemoController;
@@ -99,7 +101,8 @@ function createQueryableController<
 >(
 	controllerName: string,
 	controller: T,
-	endpointsService: BaseEndpointsService<TAnalytics>
+	http: HttpClient,
+	server: string
 ): {
 	[TAction in keyof T]: (
 		...args: Parameters<T[TAction]>
@@ -115,8 +118,8 @@ function createQueryableController<
 	implementHttpCallsInController(
 		controllerName,
 		controller,
-		endpointsService.http,
-		endpointsService.server,
+		http,
+		server,
 		false
 	);
 

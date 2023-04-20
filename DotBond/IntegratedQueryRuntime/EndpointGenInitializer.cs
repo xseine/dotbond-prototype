@@ -141,7 +141,10 @@ public static class EndpointGenInitializer
                 
                 // Handle only anonymous types, or generics with anonymous type arguments
                 if (!type.IsAnonymousType && type is INamedTypeSymbol {IsGenericType: true} generic && generic.TypeArguments.All(e => !e.IsAnonymousType))
-                    return action.WithReturnType(SyntaxFactory.ParseTypeName(trimNamespaceRx.Replace(type.ToString(), "")).WithTrailingTrivia(SyntaxFactory.Space));
+                {
+                    var isAsync = action.Modifiers.Any(e => e.IsKind(SyntaxKind.AsyncKeyword));
+                    return action.WithReturnType(SyntaxFactory.ParseTypeName((isAsync ? "Task<" : null) + trimNamespaceRx.Replace(type.ToString(), "") + (isAsync ? ">" : null)).WithTrailingTrivia(SyntaxFactory.Space));
+                }
                 
                 var (identifier, classDefinition, anonymousTypes) = GetAnonymousDefinition(trimNamespaceRx.Replace(type.ToString(), ""), action.Identifier.Text + "Type");
 
@@ -197,9 +200,9 @@ public static class EndpointGenInitializer
             translationRootNode = translationRootNode.InsertTriviaAfter(translationRootNode.DescendantNodes().OfType<MethodDeclarationSyntax>().LastOrDefault()?.GetTrailingTrivia().Last()
                                                                         ?? translationRootNode.DescendantNodes().OfType<ConstructorDeclarationSyntax>().First().GetTrailingTrivia().Last(), errorComments);
 
-            foreach (var actionToRemove in errors.Select(e => Regex.Match(e, @"(?<=public virtual object )\w+").Value))
+            foreach (var actionToRemove in errors.Select(e => Regex.Match(e, @"(?<=public virtual (?:object|Task<object>) )\w+").Value))
             {
-                queryControllerSource = Regex.Replace(queryControllerSource, @"\[\w+\]\s*public override object " + actionToRemove + ".*", "");
+                queryControllerSource = Regex.Replace(queryControllerSource, @"\[\w+\]\s*public override (?:object|Task<object>) " + actionToRemove + ".*", "");
             }
             
             suffixIndex++;
@@ -216,8 +219,8 @@ public static class EndpointGenInitializer
         // suffixIndex = 1;
         // treeString = Regex.Replace(treeString, @"new\s*\{", _ => $"new AnonymousType{suffixIndex++} {{");
 
-        var newQueryControllerSource = Regex.Replace(queryControllerSource, @$"public override object (?<name>\w+){MatchBrackets(BracketType.Parenthasis)}",
-            m => Regex.Match(treeString, @$"public virtual .*? {m.Groups["name"]}{MatchBrackets(BracketType.Parenthasis)}").Value).Replace("virtual", "override");
+        var newQueryControllerSource = Regex.Replace(queryControllerSource, @$"public override (?:object|Task<object>) (?<name>\w+){MatchBrackets(BracketType.Parenthasis)}",
+            m => Regex.Match(treeString, @$"public virtual .*? {m.Groups["name"]}{MatchBrackets(BracketType.Parenthasis)}").Value).Replace("virtual", "override").Replace(" async ", " ");
         
         // Update controller syntax tree in compilation (Updated tree not used by anything currently) 
         var oldControllerSource = diagnosticCompilation.SyntaxTrees.FirstOrDefault(e => e.FilePath == Path.Combine(ControllersPath, ControllersPath));
@@ -503,6 +506,10 @@ public class {className}
         
         // Trim empty lines
         existingContent = Regex.Replace(existingContent, @"^(\s*\n){3,}", "\r\n\r\n", RegexOptions.Multiline);
+        
+        // Update using statements
+        var newUsingStatements = Regex.Match(contentToWrite, @"^.*(?=namespace \w)", RegexOptions.Singleline).Value.Split("\n");
+        existingContent = Regex.Replace(existingContent, @"^.*(?=namespace \w)", e => string.Join("\n", e.Value.Split("\n").Concat(newUsingStatements).Distinct()) + "\n", RegexOptions.Singleline);
         
         await File.WriteAllTextAsync(filePath, existingContent, cancellationToken);
     }

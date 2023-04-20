@@ -8,26 +8,21 @@ public class BondConfigSchema
     public string FolderNameCase { get; set; }
     public string OutputFolder { get; set; }
     
-    public static BondConfigSchema LoadFromFile(string path)
+    public static BondConfigSchema DeriveFromProjectFiles(string root)
     {
-        var config = new BondConfigSchema();
+        var slnRoot = new DirectoryInfo(root) is var dir && dir.GetFiles("*.sln").Any() ? dir : dir.Parent;
+        var angularRoot = slnRoot.GetFiles("angular.json", SearchOption.AllDirectories).FirstOrDefault()?.Directory.FullName;
+        if (angularRoot == null) throw new Exception("Could not find angular root. Tried finding angular.json from the: " + slnRoot.FullName);
 
-        var jsonConfig = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(File.ReadAllText(path));
+        var appFolder = Path.Combine(angularRoot, "src", "app");
+        if (Directory.Exists(appFolder) == false)  throw new Exception("src/app is missing from Angular root: " + angularRoot);
 
-        if (!jsonConfig.ContainsKey("outputFolder")
-            || !jsonConfig.ContainsKey("fileNameCase")
-            || !jsonConfig.ContainsKey("folderNameCase")) throw new Exception("bond.json config is invalid file.");
-
-        // OutputFolder
-        config.OutputFolder = jsonConfig["outputFolder"].GetString();
-        
-        // FileNameCase
-        config.FileNameCase = jsonConfig["fileNameCase"].GetString();
-
-        // FolderNameCase
-        config.FolderNameCase = jsonConfig["folderNameCase"].GetString();
-
-        return config;
+        return new BondConfigSchema()
+        {
+            FileNameCase = "kebab-case",    // only one supported currently
+            FolderNameCase = "kebab-case",  // only one supported currently
+            OutputFolder = Path.Combine(appFolder, "api")
+        };
     }
 }
 

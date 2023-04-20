@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Net;
+using System.Text.RegularExpressions;
 using DotBond.Workspace;
 
 namespace DotBond.Misc;
@@ -16,6 +17,7 @@ public static class FrontendDirectoryController
     /// Output directory for generated files. Provided as relative path from the project root.
     /// </summary>
     private static string _frontendFilesRoot;
+
     private static NameCase _fileNameCase = NameCase.KebabCase;
     private static NameCase _folderNameCase = NameCase.KebabCase;
 
@@ -51,12 +53,26 @@ public static class FrontendDirectoryController
     {
         relativeTargetPath = CorrectSeparatorInPath(relativeTargetPath);
         var withCasingRulesApplied = ApplyCaseRules(relativeTargetPath);
-        
+
         var absoluteTargetPath = Path.Combine(GetAngularRootPath(), withCasingRulesApplied);
         if (!File.Exists(absoluteTargetPath)) Directory.CreateDirectory(Directory.GetParent(absoluteTargetPath)!.FullName);
-        File.WriteAllText(absoluteTargetPath, content);
+
+        var retryCnt = 0;
+        retry:
+        try
+        {
+            File.WriteAllText(absoluteTargetPath, content);
+        }
+        catch
+        {
+            if (retryCnt++ < 10)
+            {
+                Utilities.FileIOTimeoutUnit(retryCnt).Wait();
+                goto retry;
+            }
+        }
     }
-    
+
     /// <summary>
     /// Deletes translation file, and folder ancestors if empty.
     /// </summary>
@@ -115,12 +131,12 @@ public static class FrontendDirectoryController
     }
 
     public static string DetermineAngularPath(string relativePath) => Path.Combine(GetAngularRootPath(), ApplyCaseRules(relativePath));
-    
+
     public static bool DoesFileExist(string relativePath)
     {
         relativePath = CorrectSeparatorInPath(relativePath);
         var withCasingRulesApplied = ApplyCaseRules(relativePath);
-        
+
         return File.Exists(Path.Combine(GetAngularRootPath(), withCasingRulesApplied)[..^2] + "ts");
     }
 
@@ -130,7 +146,7 @@ public static class FrontendDirectoryController
     {
         var directory = new DirectoryInfo(Path.Combine(GetAngularRootPath(), "a"));
         string proxyFileRelativePath = null;
-        
+
         while ((directory = directory.Parent) != null)
         {
             var files = directory.GetFiles();
@@ -148,26 +164,24 @@ public static class FrontendDirectoryController
             proxyFileRelativePath = proxyConfigValue;
             break;
         }
-        
+
         if (proxyFileRelativePath == null) return null;
 
         var proxyFilePath = Path.Combine(directory.FullName, proxyFileRelativePath);
         var proxyFileContent = await File.ReadAllTextAsync(proxyFilePath);
 
-        return proxyFilePath.EndsWith("json") 
-            ? Regex.Match(proxyFileContent, @"/\w+").Value 
+        return proxyFilePath.EndsWith("json")
+            ? Regex.Match(proxyFileContent, @"/\w+").Value
             : Regex.Match(proxyFileContent, @"(?<=context\s*:\s*\[\s*['""])/\w+").Value;
     }
-    
+
     /*========================== Private API ==========================*/
 
     private static string GetAngularPathFromAbsolute(string path)
     {
         var standardPath = Path.GetFullPath(path);
 
-        return !standardPath.StartsWith(GetAngularRootPath()) ?
-            Path.Combine(GetAngularRootPath(), ApplyCaseRules(Path.GetRelativePath(_backendFilesRoot, standardPath)[..^2] + "ts")) :
-            standardPath;
+        return !standardPath.StartsWith(GetAngularRootPath()) ? Path.Combine(GetAngularRootPath(), ApplyCaseRules(Path.GetRelativePath(_backendFilesRoot, standardPath)[..^2] + "ts")) : standardPath;
     }
 
     private static string GetRelativePathUsingTsSyntax(string relativeTo, string path)
@@ -188,8 +202,6 @@ public static class FrontendDirectoryController
         _ => throw new Exception("Unknown option for FolderNameCase. Use either: ")
     };
 
-
-    
 
     private static string CorrectSeparatorInPath(string path) => path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
 }
