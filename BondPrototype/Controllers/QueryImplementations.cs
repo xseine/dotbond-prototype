@@ -32,23 +32,23 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetMovies()
-      .Select(
-        (movie) => new GetMovieListDetailsType {
-            Picture = movie.MoviePoster,
-            Name = movie.Title,
-            Year = movie.ReleaseDate.Year,
-            Rating = movie.Rating,
-            Description = movie.Description,
-            Director = movie.DirectedBy.Name,
-            Actors = movie.Actors.Select((actor) => actor.Name),
-            Awards = movie.Awards.Select((award) => new GetMovieListDetailsType.AnonymousSubType1 {
-              Type = award.Type,
-              Name = award.Name,
-            }),
-          }
-      )
-      ;
+		return movieApi.GetMovies()
+			.Select(
+				(movie) => new GetMovieListDetailsType {
+						Picture = movie.MoviePoster,
+						Name = movie.Title,
+						Year = movie.ReleaseDate.Year,
+						Rating = movie.Rating,
+						Description = movie.Description,
+						Director = movie.DirectedBy.Name,
+						Actors = movie.Actors.Select((actor) => actor.Name),
+						Awards = movie.Awards.Select((award) => new GetMovieListDetailsType.AnonymousSubType1 {
+							Type = award.Type,
+							Name = award.Name,
+						}),
+					}
+			)
+			;
     }
 
 
@@ -56,25 +56,24 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetActors().Value
-      ?.Select(
-        (actor) => new GetShortProfilesOfActorsType {
-            Id = actor.Id,
-            Picture = actor.Picture,
-            Name = actor.Name,
-            NumberOfMovies = actor.ActedIn.Count,
-          }
-      )
-      ;
+		return movieApi.GetActors().Value
+			?.Select(
+				(actor) => new GetShortProfilesOfActorsType {
+						Id = actor.Id,
+						Picture = actor.Picture,
+						Name = actor.Name,
+						NumberOfMovies = actor.ActedIn.Count,
+					}
+			)
+			;
     }
 
 
     public virtual IQueryable<GetListOfActorNamesType> GetListOfActorNames()
     {
         return GetShortProfilesOfActors()
-      
-      .Select((e) => new GetListOfActorNamesType { Name = e.Name, Id = e.Id })
-      ;
+			.Select((e) => new GetListOfActorNamesType { Name = e.Name, Id = e.Id })
+			;
     }
 
 
@@ -82,13 +81,13 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetActors().Value
-      ?.Where((actor) => actor.Id == actorId)
-      .Select((actor) => new GetBiographyType {
-        Biography = actor.Biography,
-        Movies = actor.ActedIn.Select((movie) => movie.Title),
-      })
-      .FirstOrDefault();
+		return movieApi.GetActors().Value
+			?.Where((actor) => actor.Id == actorId)
+			.Select((actor) => new GetBiographyType {
+				Biography = actor.Biography,
+				Movies = actor.ActedIn.Select((movie) => movie.Title),
+			})
+			.FirstOrDefault();
     }
 
 
@@ -96,13 +95,13 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetActors().Value
-      ?.Where((actor) => actor.Id == actorId)
-      .Select((actor) => new GetBiography2Type {
-        Biography = actor.Biography,
-        Movies = actor.ActedIn.Select((movie) => movie.Title),
-      })
-      .FirstOrDefault();
+		return movieApi.GetActors().Value
+			?.Where((actor) => actor.Id == actorId)
+			.Select((actor) => new GetBiography2Type {
+				Biography = actor.Biography,
+				Movies = actor.ActedIn.Select((movie) => movie.Title),
+			})
+			.FirstOrDefault();
     }
 
 
@@ -110,33 +109,48 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetActors().Value
-      ?.Select((actor) => new {
-        Id = actor.Id,
-        Average =
-          actor.ActedIn.Select((e) => e.Rating).Sum(e => e) / actor.ActedIn.Count,
-        Colleagues = movieApi.GetActors().Value
-          .Where((potentialColleague) =>
-            potentialColleague.ActedIn.Any((e) =>
-              actor.ActedIn.Select((e) => e.Id).Contains(e.Id)
-            )
-          )
-          .Select((e) => new GetShortProfileAndWorkStatsType.AnonymousSubType1 { Name = e.Name, Id = e.Id })
-          .Where((e) => e.Id != actor.Id)
-          .ToList(),
-      })
-      .Join(
-        GetShortProfilesOfActors(),
-        e => e.Id, e => e.Id, 
-        (stats, profile) => new GetShortProfileAndWorkStatsType {
-          Picture= profile.Picture,
-          Name= profile.Name,
-          NumberOfMovies= profile.NumberOfMovies,
-          Id= stats.Id,
-          Average= stats.Average,
-          Colleagues= stats.Colleagues        }
-      )
-      .FirstOrDefault((e) => e.Id == actorId);
+		return movieApi.GetActors().Value
+			?.Select((actor) => new {
+				Id = actor.Id,
+				Average =
+					actor.ActedIn.Select((e) => e.Rating).Sum(e => e) /
+					actor.ActedIn.Count,
+				Colleagues = movieApi.GetActors().Value
+					.Where((potentialColleague) =>
+						potentialColleague.ActedIn.Any((e) =>
+							actor.ActedIn.Select((e) => e.Id).Contains(e.Id)
+						)
+					)
+					.Select((e) => new GetShortProfileAndWorkStatsType.AnonymousSubType1 { Name = e.Name, Id = e.Id })
+					.Where((e) => e.Id != actor.Id)
+					.ToList(),
+			})
+			.Join(
+				GetShortProfilesOfActors(),
+				e => e.Id, e => e.Id, 
+				(stats, profile) => new GetShortProfileAndWorkStatsType {
+					Picture= profile.Picture,
+					Name= profile.Name,
+					NumberOfMovies= profile.NumberOfMovies,
+					Id= stats.Id,
+					Average= stats.Average,
+					Colleagues= stats.Colleagues				}
+			)
+			.FirstOrDefault((e) => e.Id == actorId);
+    }
+
+
+    public virtual IQueryable<TestExecutionRulesType> TestExecutionRules()
+    {
+        var movieApi = new MovieApiController(db, logger);
+
+		return movieApi.GetMovies()
+			.Join(
+				movieApi.GetActors().Value,
+				e => e.Id, e => e.Id, 
+				(movie1, movie2) => new TestExecutionRulesType { Movie1 = movie1, Movie2 = movie2 }
+			)
+			;
     }
 
 
@@ -144,9 +158,9 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetDirectors()
-      .Where((director) => director.Directed.Count == 1)
-      ;
+		return movieApi.GetDirectors()
+			.Where((director) => director.Directed.Count == 1)
+			;
     }
 
 
@@ -160,9 +174,9 @@ public class QueryImplementations : ControllerBase
     {
         var movieApi = new MovieApiController(db, logger);
 
-    return movieApi.GetMoviesFromAYear((Int32) year, "").Value
-      ?.Where((movie) => movie.Awards.Count != 0 && movie.Awards.Count == 0)
-      ;
+		return movieApi.GetMoviesFromAYear((Int32) year, "").Value
+			?.Where((movie) => movie.Awards.Count != 0 && movie.Awards.Count == 0)
+			;
     }
 
 
@@ -171,11 +185,11 @@ public class QueryImplementations : ControllerBase
         string returnVar;
 		string returnVar2;
 		
-    var @new = new NewController();
+		var @new = new NewController();
 
-    return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)
-      ?.Select((e) => new MyQueryType { Value = e + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault() })
-      ;
+		return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)
+			?.Select((e) => new MyQueryType { Value = e + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault() })
+			;
     }
 
 
@@ -184,11 +198,11 @@ public class QueryImplementations : ControllerBase
         string returnVar;
 		string returnVar2;
 		
-    var @new = new NewController();
+		var @new = new NewController();
 
-    return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)
-      ?.Select((e) => new MyQuery2Type { Value = e + " a " + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault() })
-      ;
+		return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)
+			?.Select((e) => new MyQuery2Type { Value = e + " a " + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault() })
+			;
     }
 
 
@@ -197,25 +211,13 @@ public class QueryImplementations : ControllerBase
         string returnVar;
 		string returnVar2;
 		
-    var @new = new NewController();
+		var @new = new NewController();
 
-    return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)
-      ?.Select((e) => new MyQuery3Type { Value = e + " a " + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault() })
-      ;
+		return ((returnVar = @new.Test()) != null ? new[] {returnVar}.ToList() : null)
+			?.Select((e) => new MyQuery3Type { Value = e + " a " + ((returnVar2 = @new.TestTwo()) != null ? new[] {returnVar2}.ToList() : null)?.FirstOrDefault() })
+			;
     }
-//Syntax error when generating endpoint:
-//public virtual object TestExecutionRules()
-    //{
-        //var movieApi = new MovieApiController(db, logger);
 
-    //return movieApi.GetMovies()
-      //.Join(
-        //() => movieApi.GetMovies(),
-        //e => e.Id, e => e.Id, 
-        //(movie1, movie2) => new { Movie1 = movie1, Movie2 = movie2 }
-      //)
-      //;
-    //}
 }
 
 public class GetMovieListDetailsType
@@ -254,6 +256,12 @@ public class GetBiography2Type
 {
     public string Biography;
 	public IEnumerable<string> Movies;
+}
+
+public class TestExecutionRulesType
+{
+    public MovieResult Movie1;
+	public PersonResult Movie2;
 }
 
 public class MyQueryType

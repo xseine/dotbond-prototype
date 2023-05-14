@@ -145,51 +145,62 @@ public static class EndpointGenInitializer
                     var isAsync = action.Modifiers.Any(e => e.IsKind(SyntaxKind.AsyncKeyword));
                     return action.WithReturnType(SyntaxFactory.ParseTypeName((isAsync ? "Task<" : null) + trimNamespaceRx.Replace(type.ToString(), "") + (isAsync ? ">" : null)).WithTrailingTrivia(SyntaxFactory.Space));
                 }
-                
-                var (identifier, classDefinition, anonymousTypes) = GetAnonymousDefinition(trimNamespaceRx.Replace(type.ToString(), ""), action.Identifier.Text + "Type");
 
-                // Cause of this is a syntax error. If it happens, don't include the endpoint
-                if (classDefinition == null)
+
+                TypeSyntax returnTypeIdentifier;
+                var typeString = trimNamespaceRx.Replace(type.ToString(), "");
+                if (IsAnonymousType(typeString))
                 {
-                    // Use this to find exact syntax errors in the compilation
-                    // var compilationErrors = semanticModel.GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
-                    errors.Add("Syntax error when generating endpoint:\n" + action);
-                    return null;
+                    (returnTypeIdentifier, var classDefinition, var anonymousTypes) = GetAnonymousDefinition(typeString, action.Identifier.Text + "Type");
+
+                    // Cause of this is a syntax error. If it happens, don't include the endpoint
+                    if (classDefinition == null)
+                    {
+                        // Use this to find exact syntax errors in the compilation
+                        // var compilationErrors = semanticModel.GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
+                        errors.Add("Syntax error when generating endpoint:\n" + action);
+                        return null;
+                    }
+
+                    newClassDefinitions.Add(classDefinition);
+
+
+                    var anonInitsToReplace = action.DescendantNodes().OfType<AnonymousObjectCreationExpressionSyntax>().Select(anonObject =>
+                        {
+                            var anonObjectMembers = anonObject.Initializers.Select(e => e.NameEquals?.Name.Identifier.Text).Where(e => e != null).ToList();
+
+                            return (anonObject, anonymousTypes.FirstOrDefault(e => e.classMembers.SequenceEqual(anonObjectMembers)).ClassName);
+                        })
+                        .Where(tuple => tuple.ClassName != null)
+                        .ToList();
+
+                    action = action.ReplaceNodes(anonInitsToReplace.Select(e => e.anonObject), (originalInit, init) =>
+                    {
+                        var newIdentifier = anonInitsToReplace.First(e => e.anonObject == originalInit).ClassName;
+
+                        var a = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName(newIdentifier).WithLeadingTrivia(SyntaxFactory.Space).WithTrailingTrivia(SyntaxFactory.Space),
+                            null,
+                            SyntaxFactory.InitializerExpression(
+                                SyntaxKind.ObjectInitializerExpression,
+                                init.OpenBraceToken,
+                                SyntaxFactory.SeparatedList(
+                                    init.Initializers.Select(e => SyntaxFactory.AssignmentExpression(
+                                        SyntaxKind.SimpleAssignmentExpression, e.NameEquals.Name, e.Expression.WithLeadingTrivia(SyntaxFactory.Space))
+                                    ).Cast<ExpressionSyntax>(), init.Initializers.GetSeparators()
+                                ),
+                                init.CloseBraceToken
+                            )
+                        );
+
+                        return a;
+                    });
+                }
+                else
+                {
+                    returnTypeIdentifier = SyntaxFactory.ParseTypeName(typeString);
                 }
 
-                newClassDefinitions.Add(classDefinition);
-
-                var anonInitsToReplace = action.DescendantNodes().OfType<AnonymousObjectCreationExpressionSyntax>().Select(anonObject =>
-                    {
-                        var anonObjectMembers = anonObject.Initializers.Select(e => e.NameEquals?.Name.Identifier.Text).Where(e => e != null).ToList();
-
-                        return (anonObject, anonymousTypes.FirstOrDefault(e => e.classMembers.SequenceEqual(anonObjectMembers)).ClassName);
-                    })
-                    .Where(tuple => tuple.ClassName != null)
-                    .ToList();
-
-                action = action.ReplaceNodes(anonInitsToReplace.Select(e => e.anonObject), (originalInit, init) =>
-                {
-                    var newIdentifier = anonInitsToReplace.First(e => e.anonObject == originalInit).ClassName;
-
-                    var a = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName(newIdentifier).WithLeadingTrivia(SyntaxFactory.Space).WithTrailingTrivia(SyntaxFactory.Space),
-                        null,
-                        SyntaxFactory.InitializerExpression(
-                            SyntaxKind.ObjectInitializerExpression,
-                            init.OpenBraceToken,
-                            SyntaxFactory.SeparatedList(
-                                init.Initializers.Select(e => SyntaxFactory.AssignmentExpression(
-                                    SyntaxKind.SimpleAssignmentExpression, e.NameEquals.Name, e.Expression.WithLeadingTrivia(SyntaxFactory.Space))
-                                ).Cast<ExpressionSyntax>(), init.Initializers.GetSeparators()
-                            ),
-                            init.CloseBraceToken
-                        )
-                    );
-
-                    return a;
-                });
-
-                return action.WithReturnType(identifier.WithTrailingTrivia(SyntaxFactory.Space));
+                return action.WithReturnType(returnTypeIdentifier.WithTrailingTrivia(SyntaxFactory.Space));
             });
 
 
@@ -439,6 +450,11 @@ public class {className}
         return (SyntaxFactory.ParseTypeName(typeString), topLevelClassDefinition, typeDefinitions);
     }
 
+    private static bool IsAnonymousType(string typeString)
+    {
+        return typeString.Contains("<anonymous type:");
+    }
+
 
     /// <summary>
     /// Continues the stream only after the provided Task from the previous emission has completed successfully, or has been cancelled.
@@ -508,8 +524,8 @@ public class {className}
         existingContent = Regex.Replace(existingContent, @"^(\s*\n){3,}", "\r\n\r\n", RegexOptions.Multiline);
         
         // Update using statements
-        var newUsingStatements = Regex.Match(contentToWrite, @"^.*(?=namespace \w)", RegexOptions.Singleline).Value.Split("\n");
-        existingContent = Regex.Replace(existingContent, @"^.*(?=namespace \w)", e => string.Join("\n", e.Value.Split("\n").Concat(newUsingStatements).Distinct()) + "\n", RegexOptions.Singleline);
+        var newUsingStatements = Regex.Match(contentToWrite, @"^.*(?=namespace \w)", RegexOptions.Singleline).Value.Split("\n").Select(e => e.Trim());
+        existingContent = Regex.Replace(existingContent, @"^.*(?=namespace \w)", e => string.Join(Environment.NewLine, e.Value.Split("\n").Select(e => e.Trim()).Concat(newUsingStatements).Distinct()) + Environment.NewLine, RegexOptions.Singleline);
         
         await File.WriteAllTextAsync(filePath, existingContent, cancellationToken);
     }
@@ -551,21 +567,29 @@ public class {className}
 
         var lockedVersion = Regex.Replace(
                 Regex.Replace(tsDefinitionsFileContent, @"@Injectable\(\{[\s\S]*?\}\)", ""),
-                @"export class [\s\S]*?(?=\s*@customQuery|}\s*$)", @"export class QueryServiceLock {
+                @"export class [\s\S]*?(?=\s*@customQuery|}\s*$)", """
+                    
+                    let asQueryable: any;
+                    export class QueryServiceLock {
+                    
+                        private ctx: any;
+                    
 
-    private ctx: any;
-
-")
+                    """)
             .Replace("@customQuery", "@lockedQuery");
 
 
-        lockedVersion += @"function lockedQuery(target: any, propertyName: string, descriptor: TypedPropertyDescriptor<(...args: any) => any>) {
+        lockedVersion = Regex.Replace(lockedVersion, @"(?<=import.*?)asQueryable,? ?", "", RegexOptions.Multiline);
 
-    let method = descriptor.value!.toString();
-    descriptor.value = function () {
-        return method;
-    }
-}";
+        lockedVersion += """
+            function lockedQuery(target: any, propertyName: string, descriptor: TypedPropertyDescriptor<(...args: any) => any>) {
+            
+                let method = descriptor.value!.toString();
+                descriptor.value = function () {
+                    return method;
+                }
+            }
+            """;
 
         var parentDirectory = Directory.GetParent(TsDefinitionsFile).FullName;
         await File.WriteAllTextAsync(Path.Combine(parentDirectory, "query.service.lock.ts"), lockedVersion, cancellationToken);

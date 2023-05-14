@@ -25,7 +25,7 @@
 
     <ItemGroup>
       <None Remove="TestSources\*" />
-      <Content Include="TestSources\*">
+      <Content Include="Translator\TestSources\*">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
       <None Remove="utilities.js" />
@@ -36,6 +36,9 @@
       <Content Include="date-format.js">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <None Update="tsc.js">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

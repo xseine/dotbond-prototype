@@ -15,7 +15,7 @@ namespace DotBondTests;
 
 public class TranslatorUnitTests
 {
-    private static string[] _sources = Directory.GetFiles("TestSources").ToArray();
+    private static string[] _sources = Directory.GetFiles(Path.Combine("Translator", "TestSources")).ToArray();
     private string _jsImports = File.ReadAllText("utilities.js") + "\n" + File.ReadAllText("date-format.js");
     
     private int _cnt;
@@ -40,7 +40,7 @@ public class TranslatorUnitTests
         
         await File.WriteAllTextAsync(translationFilePath, tsSource);
 
-        var command = @$"""C:\Users\illus\VSProjects\BondPrototype\BondPrototype\Angular\node_modules\typescript\lib\tsc.js"" ""{translationFilePath}""  --module es2015 --target es2017";
+        var command = @$"""tsc.js"" ""{translationFilePath}""  --module es2015 --target es2017";
         var process = Process.Start("node", command);
         await process.WaitForExitAsync();
         

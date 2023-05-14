@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+
 using BondPrototype.Models;
 using Microsoft.Extensions.Logging;
 using BondPrototype.Controllers;
-
+using TestingBond.Controllers;
 namespace GeneratedControllers;
 
 [ApiController]
@@ -37,6 +38,10 @@ public class QueryController : QueryImplementations
 
 	[HttpGet]
     public override GetShortProfileAndWorkStatsType GetShortProfileAndWorkStats(decimal actorId) => base.GetShortProfileAndWorkStats(actorId);
+
+
+	[HttpGet]
+    public override IQueryable<TestExecutionRulesType> TestExecutionRules() => base.TestExecutionRules();
 
 
 	[HttpGet]

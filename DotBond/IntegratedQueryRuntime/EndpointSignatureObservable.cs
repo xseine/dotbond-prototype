@@ -52,6 +52,8 @@ public static class EndpointSignatureObservable
         var controllerPath = Path.Combine(ControllersPath, EndpointGenInitializer.QueryControllerFile);
         var lockedControllerPath = Path.Combine(ControllersPath, LockedControllerFileName);
 
+        if (!File.Exists(implementationsPath)) return;
+        
         var implementationsContent = File.Exists(lockedImplementationsPath) ? await File.ReadAllTextAsync(lockedImplementationsPath) : await File.ReadAllTextAsync(implementationsPath);
         var controllerContent = File.Exists(lockedControllerPath) ? await File.ReadAllTextAsync(lockedControllerPath) : await File.ReadAllTextAsync(controllerPath);
         

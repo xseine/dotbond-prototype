@@ -367,3 +367,5 @@ Microsoft.NET.Sdk.Razor.SourceGenerators
 **.snupkg
 
 **/nuget.config
+
+BondPrototype/.bondlogs

@@ -3,7 +3,7 @@ import {
 	BaseEndpointsServiceConstructorFn,
 } from "./base-endpoints.service";
 import { HttpClient } from "@angular/common/http";
-import { asQueryable, customQuery } from "./library/miscellaneous";
+import { customQuery } from "./library/miscellaneous";
 import { Inject, Injectable } from "@angular/core";
 import { ENVIRONMENT_PROVIDER } from "../../../core/services/enviroment.provider";
 import { IMovieListDetails } from "../../movies/components/movie-list-item/movie-list-item.component";
@@ -12,6 +12,8 @@ import "./library/dates/date-extend";
 import "./library/arrays/array-extend";
 
 
+
+let asQueryable: any;
 export class QueryServiceLock {
 
     private ctx: any;
@@ -20,7 +22,6 @@ export class QueryServiceLock {
 
 	@lockedQuery
 	public GetMovieListDetails() {
-		const functionB = () => [1, 2, 3];
 		return this.ctx.MovieApi.GetMovies()
 			.map(
 				(movie) =>
@@ -74,7 +75,7 @@ export class QueryServiceLock {
 			.findAsync();
 	}
 
-	// aaaaaaaaaaaaa
+	// aaaaaaaaaaaaaaa
 	@lockedQuery
 	public GetBiography2(actorId: number) {
 		return this.ctx.MovieApi.GetActors()

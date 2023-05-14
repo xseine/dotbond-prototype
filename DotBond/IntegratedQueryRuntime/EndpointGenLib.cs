@@ -73,6 +73,7 @@ public static class EndpointGenLib
         source = ReplaceSpreadSyntax(source);
         // source = SpreadSyntaxHandler.InjectCustomMethodsAndExpressions(source);
         source = ReplaceMethodNames(source);            // Replace method names
+        source = ReplaceKnownConstructors(source);
         source = RemoveInnerQueryableExcess(source);
         source = RemoveParameterType(source);
         source = RestorePascalCaseForMembers(source);   // .name => .Name
@@ -363,9 +364,15 @@ public static class EndpointGenLib
             .Replace(".sum(", ".Sum(");
     }
 
+    private static string ReplaceKnownConstructors(string source)
+    {
+        return source
+        .Replace("new Date()", "new DateTime()");
+    }
+
     private static string RemoveInnerQueryableExcess(string source)
     {
-        return Regex.Replace(source, @"(?<=Join\(\s*)\(\s*\)\s*=>\s*this\.", "").Replace(".asQueryable()", "");
+        return Regex.Replace( Regex.Replace(source, "asQueryable" + MatchBrackets(BracketType.Parenthasis), e => e.Groups[1].Value[1..^1]), @"(?<=Join\(\s*)\(\s*\)\s*=>\s*(this\.)?", "");
     }
     
     private static string RemoveParameterType(string source)

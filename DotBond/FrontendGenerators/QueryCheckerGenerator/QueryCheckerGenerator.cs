@@ -116,7 +116,7 @@ public class QueryCheckerGenerator : AbstractGenerator
         existingActionsToUpdate.ForEach(key => _actions.Remove(key));
 
         foreach (var (key, entityTypes) in actionsInFile.Select(e => (e.Name, EntityTypes: GetUsedEntityTypes(e, semanticModel))).Where(e => e.EntityTypes != default))
-            _actions.Add(key, entityTypes);
+            _actions[key] = entityTypes;
 
         return _actions;
     }

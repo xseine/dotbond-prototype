@@ -134,26 +134,30 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="Controllers\QueryImplementations.cs.locked">
-            <DependentUpon>QueryImplementations.cs</DependentUpon>
-        </None>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Update="Controllers\QueryImplementations.cs">
-            <DependentUpon>QueryController.cs</DependentUpon>
-        </Compile>
         <Compile Remove="Angular\.angular\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="Controllers\QueryImplementations.cs.locked">
-            <DependentUpon>QueryImplementations.cs</DependentUpon>
-        </None>
+      <Folder Include="Angular\src\app\api\" />
+      <Folder Include="wwwroot" />
+    </ItemGroup>
+
+     <ItemGroup>
+	  <None Update="Controllers\QueryImplementations.cs.locked">
+        <DependentUpon>QueryImplementations.cs</DependentUpon>
+      </None>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="wwwroot" />
+	  <Compile Update="Controllers\QueryImplementations.cs">
+        <DependentUpon>QueryController.cs</DependentUpon >
+      </Compile>
+    </ItemGroup>
+
+     <ItemGroup>
+	  <None Update="Controllers\QueryImplementations.cs.locked">
+        <DependentUpon>QueryImplementations.cs</DependentUpon>
+      </None>
     </ItemGroup>
 
 </Project>

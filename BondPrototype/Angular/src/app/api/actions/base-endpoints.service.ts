@@ -10,21 +10,18 @@
 import { Observable } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import {
-	MovieApiController,
-	NewController,
-	TranslateDemoController,
+MovieApiController,
+NewController,
+TranslateDemoController
 } from "./controller-definitions";
-import {
-	asQueryable,
-	implementHttpCallsInController,
-} from "./library/miscellaneous";
+import {asQueryable, implementHttpCallsInController} from "./library/miscellaneous";
 import { IQueryable } from "./library/queryable";
 import { ExecutionInsights } from "./execution-rules";
 /**
  * Class that provides methods for making http requests to backend API.
  * Properties, representing backend controllers, are objects that contain
  * methods, which are actions of that specific controller.
- *
+ * 
  */
 export class BaseEndpointsService<TAnalytics extends boolean = true> {
 	constructor(http: HttpClient, server: string) {
@@ -42,8 +39,8 @@ export class BaseEndpointsService<TAnalytics extends boolean = true> {
 	}
 
 	protected ctx: EndpointsContext<TAnalytics>;
-
-	public MovieApi = new MovieApiController();
+    
+    public MovieApi = new MovieApiController();
 	public New = new NewController();
 	public TranslateDemo = new TranslateDemoController();
 }
@@ -54,9 +51,7 @@ type Constructor<T = Record<string, unknown>> = {
 	prototype: T;
 };
 
-export function BaseEndpointsServiceConstructorFn<
-	TAnalytics extends boolean = true
->(
+export function BaseEndpointsServiceConstructorFn<TAnalytics extends boolean = true>(
 	showAnalytics: TAnalytics = true as TAnalytics
 ): Constructor<BaseEndpointsService<TAnalytics>> {
 	return BaseEndpointsService<TAnalytics>;
@@ -75,7 +70,7 @@ export class EndpointsContext<TAnalytics extends boolean = true> {
 		private currentCustomQueryName: { name: string }
 	) {}
 
-	public MovieApi = createQueryableController<MovieApiController, TAnalytics>(
+    	public MovieApi = createQueryableController<MovieApiController, TAnalytics>(
 		"MovieApi",
 		new MovieApiController(),
 		this.http,
@@ -87,10 +82,12 @@ export class EndpointsContext<TAnalytics extends boolean = true> {
 		this.http,
 		this.server
 	);
-	public TranslateDemo = createQueryableController<
-		TranslateDemoController,
-		TAnalytics
-	>("TranslateDemo", new TranslateDemoController(), this.http, this.server);
+	public TranslateDemo = createQueryableController<TranslateDemoController, TAnalytics>(
+		"TranslateDemo",
+		new TranslateDemoController(),
+		this.http,
+		this.server
+	);
 }
 
 type TController = MovieApiController | NewController | TranslateDemoController;
@@ -130,7 +127,6 @@ function createQueryableController<
 	// @ts-ignore
 	let result = {} as any;
 	for (let action of actionNames) {
-		// ovo se moze dolje ubaciti
 		let overridenActionCall = controller[action] as (
 			...args: any
 		) => Observable<any>;

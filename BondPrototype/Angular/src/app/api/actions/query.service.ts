@@ -37,11 +37,10 @@ export class QueryService extends BaseEndpointsServiceConstructorFn(true) {
 	//         .map(e => ({title: e.movieTitle + e.id + 23, directorName: e.directorName}))
 	//         .findAsync();
 	// }
-	// asdaaasdaaaaaaaaaaaaaasdaaaaaaaaaaaaaa asd
+	// asdaaasdaaaaaaaaaaaaaasdaaaaaaaaaaaaaa asdaaaaaa
 
 	@customQuery
 	public GetMovieListDetails() {
-		const functionB = () => [1, 2, 3];
 		return this.ctx.MovieApi.GetMovies()
 			.map(
 				(movie) =>
@@ -95,7 +94,7 @@ export class QueryService extends BaseEndpointsServiceConstructorFn(true) {
 			.findAsync();
 	}
 
-	// aaaaaaaaaaaaa
+	// aaaaaaaaaaaaaaa
 	@customQuery
 	public GetBiography2(actorId: number) {
 		return this.ctx.MovieApi.GetActors()
