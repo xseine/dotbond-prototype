@@ -61,7 +61,8 @@ At the start, clients  fetch data from all referenced endpoints and execute the 
 When the back-end gets the definition, it is provided with a default implementation of the query (which can be overriden/removed).
 From then on, the query is executed server side. New queries without the implementation, yet, but that reference existing server-side queries
 will execute partially on the server and partially on the client (hybrid).
-If a query definition is changed on the client it will reset to client execution, and won't use the out-of-date back-end implementation.
+If a query definition is changed on the client it will reset to client execution, and won't use the out-of-date back-end implementation.<br/>
+Client queries are written inside `query.service.ts`, and are generated in `QueryImplementations.cs` file (used by `QueryController.cs`);
 
 **Query limiter** <br/>
 This component is used to put some reasonable limitations on the client,
