@@ -1,7 +1,6 @@
-﻿**This is a demo of the tool that consists of a Web API project, Angular project, and "Translator" console project.
-Run the first two to see what the demo is about (or use Dockerfile), and then run Translator and start adding new Controllers and new queries!**
-
-**If you are using Docker, use the http port.**
+﻿**This is a demo of the tool that consists of a Web API project `BondPrototype`, Angular project (`BondPrototype/Angular`), and `DotBond` console project.
+Run the first two to see the demo application (or use Dockerfile), and then run DotBond and start adding new actions!**<br/>
+**If you want to use the Dockerfile, use the http port.**
 
 <br/>
 <img align="left" src="https://i.imgur.com/qfZKQUJ.png" width="150" />
@@ -25,7 +24,7 @@ It provides:
 - Query execution plan using TypeScript’s Type System
 - Protection from writing bad client queries
 
-Currently just supports Angular, but can easily be made portable.
+Currently just supports Angular, but can easily be made front-end agnostic.
 
 Tool will be usable inside a single code repository or inside multiple using GitHub Actions.
 
@@ -36,20 +35,23 @@ Tool will be usable inside a single code repository or inside multiple using Git
 
 ## Instructions
 
-To start the tool, run `dotnet tool run dotbond <path to .csproj>` in the terminal. Currently just supports monorepo
+Install dotbond as a global tool from nuget: [link](https://www.nuget.org/packages/xseine.DotBond/).<br/>
+To start the tool, run `dotbond` in the project directory or `dotbond <path to .csproj>` in the terminal. Currently just supports monorepo
 and it will try to automatically find the location of the front-end (Angular) root directory. 
+You can use `BondPrototype` project from this repository or roll up your own.  
 
 ## Features
 
 Quite a large feature list and the implementation is unfortunately somewhat complex and uses: RxNet, Roslyn, expression trees,
-advanced type rules and bi-directional visitor pattern. At least, the TypeScript compiler/AST was avoided.  
+advanced types and bi-directional visitor pattern. At least, the TypeScript compiler/AST was avoided.
 
 **All endpoint definitions are translated to the front-end.** <br/>
 Besides class properties, class methods are also translated, along with portions of `System` namespace
 that are most commonly used by the models: List methods, string methods and formatting, DateTime operations, etc.
 C# 10 (supported) has a richer syntax, which is in part impossible/too difficult to translate (in/ref/out, operator overloading, checked/unchecked),
 so apologies for these shortcomings.<br/>
-Generated RPC methods give a straightforward way of making calls to these endpoints.
+RPC methods are also provided for making calls to the endpoints.<br/>
+One of the pages in the demo is made to showcase capabilities of the translation engine, so give it a try.
 
 **Client queries** <br/>
 Client queries are queries defined on the front-end, and can be executed on the server (_preferably_), client or on both.
@@ -85,6 +87,9 @@ translate front-end queries to C# counterparts. It is able to detect when a clie
 so no unintentional overrides, and also removes all outdated client query implementations that would prevent a back-end build.
 
 
+**Formatting** <br/>
+Pretty formatting of generated code is not built-in, but something like [Prettier](https://prettier.io/docs/en/editors.html) can be used.
+
 ## Breaking 
 
 Using generators has its downsides as they might break more code references than expected, 
@@ -92,6 +97,6 @@ generated code can't be modified directly (*in most cases*), etc.
 So having generator work in a less obtrusive manner will be addressed in the future.
 
 Even though specific use cases of the API are tracked (in the generated code for actions),
-the downside is the API definition might become complicated by having second class queries from the client in it.
+the downside is the API definition might become complicated by having second-class queries from the client in it.
 Query limiter is responsible for making correct decisions based on the analysis of the API and predefined rules
 so the generated actions are ones that are quick and easy to upgrade.

@@ -39,6 +39,9 @@ public static class EndpointSignatureObservable
     // [DllImport("kernel32.dll", SetLastError = true)]
     // static extern bool CancelIoEx(IntPtr handle, IntPtr lpOverlapped);
     
+    /// <summary>
+    /// Observes out-of-date usages of original endpoints in the generated implementations files.
+    /// </summary>
     public static async Task InitializeObservable(FileObservable fileObservable, string csprojPath)
     {
         var backendRoot = Directory.GetParent(csprojPath)!.FullName;
@@ -65,22 +68,30 @@ public static class EndpointSignatureObservable
         var watcher = InitializeFileWatcher(implementationsPath);
         
         // Get newest version of implementations by observing fs for external changes
-        // When the implementation file changes, proceed with signatures check only if the user confirms it
+        // When the implementation file changes with errors, proceed with signatures check only if the user confirms it
         var implementationObservable = Observable.FromEventPattern<FileSystemEventArgs>(watcher, nameof(watcher.Changed))
             .Throttle(TimeSpan.FromMilliseconds(50))
             .Where(_ => !_skipInternalEvents)
-            .Do(async _ => await UpdateLockedContent(fileObservable, implementationsPath, lockedImplementationsPath, controllerPath, lockedControllerPath))
+            .Do(async _ =>
+            {
+                await UpdateLockedContent(fileObservable, implementationsPath, lockedImplementationsPath, controllerPath, lockedControllerPath);
+            })
             .Select(_ =>
             {
-                Console.Write("Generated query implementations file has changed.\nDo you want check signatures of used endpotins [Y/n]:");
-                return FromConsole.Select(e => e.Trim() == "" || e.Trim().ToLower() == "y");
-                // return Observable.FromAsync(() => Console.In.ReadLineAsync()).Select(e => e.Trim() == "" || e.Trim().ToLower() == "y");
+                var errors = fileObservable.Compilation.SyntaxTrees.FirstOrDefault(e => e.FilePath == implementationsPath) is {} tree 
+                    ? fileObservable.Compilation.GetSemanticModel(tree).GetDiagnostics().Where(e => e.Severity == DiagnosticSeverity.Error).ToList()
+                    : null;
+
+                if (errors is null or { Count: 0 }) return Observable.Return(false);
+                
+                Console.Write("Generated query implementations file contains errors.\nDo you want to remove endpoints that contain errors [Y/n]:");
+                return FromConsole.Select(e => e.Trim().ToLower() is "y" or "");
             })
             // .ObserveOn(new NewThreadScheduler())
             .Switch()
             .Where(e => e);
 
-        // Get actions from changed (deleted) files, and run the check automatically
+        // Get actions from changed (or deleted) files, and run the check automatically
         var actionsObservable = fileObservable
             .ObserveChangedFiles(input =>
                 // ApiGenerator.GetActionsFromController(input.FileTree, input.SemanticModel)?.CheckForOutOfDateSignatures(fileObservable.Compilation) ?? false)

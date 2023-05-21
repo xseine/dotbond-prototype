@@ -105,7 +105,7 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
                     case nameof(Enumerable.Contains):
                     {
-                        newMethodName = "includes";
+                        newMethodName = ((InvocationExpressionSyntax)node.Parent).ArgumentList.Arguments.Count == 1 ? "includes" : "includesWithComparer";
                         break;
                     }
 
@@ -331,7 +331,28 @@ public partial class Rewriter : AbstractRewriterWithSemantics
 
                         break;
                     }
+                    
+                    case nameof(Enumerable.Any):
+                    {
+                        if (node.Parent is InvocationExpressionSyntax { ArgumentList.Arguments.Count: 1 })
+                            newMethodName = "some";
+                        else
+                            RegisterAncestorRewrite(syntaxNode =>
+                            {
+                                var invocation = (InvocationExpressionSyntax)syntaxNode;
+                                return SyntaxFactory.BinaryExpression(SyntaxKind.GreaterThanExpression,
+                                    SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ((MemberAccessExpressionSyntax) invocation.Expression).Expression, SyntaxFactory.IdentifierName("length")),
+                                    SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(1)));
+                            }, SyntaxKind.InvocationExpression);
+                        break;
+                    }
 
+                    case nameof(Enumerable.All):
+                    {
+                        newMethodName = "every";
+                        break;
+                    }
+                    
                     case nameof(Enumerable.Range):
                     {
                         RegisterAncestorRewrite(syntaxNode =>
@@ -655,6 +676,18 @@ public partial class Rewriter : AbstractRewriterWithSemantics
                         break;
                     }
 
+                    case nameof(Random.Next):
+                    {
+                        RegisterAncestorRewrite(syntaxNode =>
+                        {
+                            var invocation = (InvocationExpressionSyntax)syntaxNode;
+                            var (min, max) = invocation is { ArgumentList.Arguments: [{Expression: var x}, {Expression: var y}] } ? (x.ToString(), y.ToString()) : ("0", "2147483647");
+                                return SyntaxFactory.ParseExpression($"Math.floor(Math.random() * ({max} - {min} + 1)) + {max}");
+                        },
+                        SyntaxKind.InvocationExpression);
+                        break;
+                    }
+
                     case nameof(DateTime.Year):
                     {
                         newMethodName = "getFullYear()";
@@ -946,7 +979,11 @@ public partial class Rewriter : AbstractRewriterWithSemantics
         {
             if (propertySymbol.Name == "NewLine")
                 return SyntaxFactory.ParseExpression("'\\n'");
-        }
+        } else if (propertySymbol.ContainingType.Name == "StringComparer")
+        {
+            if (propertySymbol.Name == "OrdinalIgnoreCase")
+                return SyntaxFactory.ParseExpression("'ordinalCaseInvariant'");
+        } 
 
         return null;
     }

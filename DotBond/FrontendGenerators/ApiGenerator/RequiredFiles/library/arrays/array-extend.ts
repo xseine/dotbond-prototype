@@ -14,7 +14,10 @@ interface Array<T> {
         : (selector: (element: T) => number) => number;
 
     groupBy<T, TKey, TElement = unknown>(this: Array<T>, keySelector: (_: T) => TKey, elementSelector?: (_: T) => TElement): (TElement extends unknown ? T[] : TElement[]) & {key: string};
+    
+    includesWithComparer(searchElement: T, comparer: 'ordinalCaseInvariant'): boolean;
 }
+
 
 
 Array.prototype.sum = function (selector) {
@@ -41,3 +44,17 @@ Array.prototype.groupBy = function <T, TKey, TElement>(keySelector: (_: T) => TK
     return [...map.entries()].map(([key, array]: [TKey, any]) => Object.defineProperty(array, 'key', {value: key})) as any;
 }
 
+Array.prototype.includesWithComparer = function <T>(searchElement: T, comparer: 'ordinalCaseInvariant'): boolean {
+    if (comparer == 'ordinalCaseInvariant') {
+        return this.find(e => ordinalCaseInvariantCompare(e, searchElement)) != null;
+    }
+    
+    throw 'Function not implemented for provided comparer: ' + (comparer as any)?.toString();
+}
+
+function ordinalCaseInvariantCompare(str1, str2) {
+    const upperStr1 = str1.toUpperCase();
+    const upperStr2 = str2.toUpperCase();
+
+    return upperStr1.localeCompare(upperStr2, "en", { sensitivity: "base" });
+}

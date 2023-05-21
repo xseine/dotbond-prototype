@@ -200,7 +200,8 @@ public static class EndpointGenInitializer
                     returnTypeIdentifier = SyntaxFactory.ParseTypeName(typeString);
                 }
 
-                return action.WithReturnType(returnTypeIdentifier.WithTrailingTrivia(SyntaxFactory.Space));
+                var isAsync1 = action.Modifiers.Any(e => e.IsKind(SyntaxKind.AsyncKeyword));
+                return action.WithReturnType((isAsync1 == false ? returnTypeIdentifier : SyntaxFactory.ParseTypeName("Task<" + returnTypeIdentifier.GetText() + ">")).WithTrailingTrivia(SyntaxFactory.Space));
             });
 
 
@@ -285,7 +286,7 @@ public static class EndpointGenInitializer
                 var membersOfSpreadNodes = spreadNodesInParent
                     .Select(e => e.ArgumentList.Arguments.First().Expression)
                     .Select(objectToSpread => ((INamedTypeSymbol)semanticModelLambdaCopy.GetTypeInfo(objectToSpread).Type).GetMembers()
-                        .Where(e => e is IPropertySymbol or IFieldSymbol)
+                        .Where(e => e is (IPropertySymbol or IFieldSymbol) and {DeclaredAccessibility: Accessibility.Public} )
                         .Select(e => e.Name).ToList()).ToArray();
 
                 // Indexes are used to check if following nodes override member (same name)
