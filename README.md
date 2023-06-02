@@ -9,7 +9,8 @@ Run the first two to see the demo application (or use Dockerfile), and then run 
 
 <h3 style="margin-top: 0; line-height: 1">DotBond - tool for dynamic API development</h3>
 
-DotBond is currently in the proof of concept stage and is not yet suitable for use in development.
+DotBond is currently in the proof of concept stage and is not yet suitable for use in development.<br/>
+Purpose: GraphQL alternative with LINQ-like syntax in TypeScript
 
 The most important piece of design in the application is the API. It contains both the performance backend, and the application's data.<br/>
 The data, its organization and transfer (payload size, push events, chunked transfer, etc.) affect application's complexity and scalability.
